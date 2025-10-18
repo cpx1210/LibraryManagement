@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: postgres
+    password: 5832
+
+  # 开发工具
+  devtools:
+    restart:
+      enabled: true
+
+# 日志级别
+logging:
+  level:
+    com.library: debug
+    org.springframework: info

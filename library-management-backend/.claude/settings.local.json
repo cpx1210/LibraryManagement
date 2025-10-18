@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/LibraryManagement/library-management-frontend/src/router/**)",
+      "Read(//d/LibraryManagement/library-management-frontend/src/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: library-management-backend
+
+  profiles:
+    active: dev
+
+  # 数据源配置 说明：配置数据库连接信息，告诉 Spring Boot 如何连接 PostgreSQL 数据库。
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: postgres
+    password: 5832
+
+  # JPA 配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: is_deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+
+# JWT 配置
+jwt:
+  secret: library-management-system-secret-key-2024-please-change-in-production
+  expiration: 7200000  # 2小时（单位：毫秒）
+  header: Authorization
+  token-prefix: Bearer
+
+# 日志配置
+logging:
+  level:
+    com.library: debug
+    org.springframework.security: debug
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+
+# Knife4j (Swagger) 配置
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# 服务器配置
+server:
+  port: 8080
+  servlet:
+    context-path: /api

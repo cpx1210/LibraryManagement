@@ -1,0 +1,100 @@
+# ========================================
+# 图书馆管理系统 - Git 忽略文件
+# ========================================
+
+# ==================== IDE ====================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# ==================== 后端 (Spring Boot + Maven) ====================
+# Maven
+library-management-backend/target/
+library-management-backend/.mvn/
+library-management-backend/mvnw
+library-management-backend/mvnw.cmd
+
+# Spring Boot
+library-management-backend/HELP.md
+library-management-backend/.attach_pid*
+
+# Logs
+library-management-backend/logs/
+*.log
+
+# 临时文件
+library-management-backend/tmp/
+library-management-backend/temp/
+
+# ==================== 前端 (Vue 3 + Vite) ====================
+# Node modules
+library-management-frontend/node_modules/
+
+# Build output
+library-management-frontend/dist/
+library-management-frontend/dist-ssr/
+
+# Logs
+library-management-frontend/*.log
+library-management-frontend/npm-debug.log*
+library-management-frontend/yarn-debug.log*
+library-management-frontend/yarn-error.log*
+library-management-frontend/pnpm-debug.log*
+library-management-frontend/lerna-debug.log*
+
+# Editor directories and files
+library-management-frontend/.DS_Store
+library-management-frontend/Thumbs.db
+
+# ==================== 数据库 ====================
+# PostgreSQL 数据文件（如果有）
+*.sql.backup
+*.dump
+
+# ==================== 操作系统 ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ==================== 其他 ====================
+# 环境变量文件
+.env
+.env.local
+.env.production
+.env.*.local
+
+# 备份文件
+*.bak
+*.swp
+*.swo
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.rar
+
+# Claude Code 本地配置
+.claude/settings.local.json

@@ -1,0 +1,38 @@
+/**
+ * 全局样式重置
+ * 确保页面铺满整个视口，无边距和滚动条
+ */
+
+/* 重置所有元素的默认边距和内边距 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* HTML 根元素样式 */
+html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Body 样式 */
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* App 容器样式 - 铺满全屏 */
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
