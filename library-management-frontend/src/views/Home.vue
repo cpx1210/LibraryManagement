@@ -3,7 +3,7 @@
     <!-- 侧边栏 -->
     <el-aside :width="isCollapse ? '64px' : '200px'" class="layout-aside">
       <div class="logo">
-        <span v-if="!isCollapse">📚 图书馆管理</span>
+        <span v-if="!isCollapse">图书馆管理</span>
         <span v-else>📚</span>
       </div>
 

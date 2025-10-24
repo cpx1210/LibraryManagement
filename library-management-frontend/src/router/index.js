@@ -40,6 +40,33 @@ const routes = [
           requiresAuth: true,
           title: '用户管理'
         }
+      },
+      {
+        path: '/sensitive-words',
+        name: 'SensitiveWordList',
+        component: () => import('@/views/sensitiveword/SensitiveWordList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '敏感词管理'
+        }
+      },
+      {
+        path: '/problem-books',
+        name: 'ProblemBookList',
+        component: () => import('@/views/problembook/ProblemBookList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '问题书目管理'
+        }
+      },
+      {
+        path: '/publisher-whitelist',
+        name: 'PublisherWhitelistList',
+        component: () => import('@/views/publisher/PublisherWhitelistList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '出版社白名单管理'
+        }
       }
     ]
   },
