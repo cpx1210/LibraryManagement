@@ -52,10 +52,20 @@ public class SensitiveWords {
     private Long wordId;
 
     /**
-     * 敏感词内容（必填，唯一）
+     * 分类ID（必填）
      *
      * 说明：
-     * - 数据库字段：keyword VARCHAR(100) UNIQUE NOT NULL
+     * - 数据库字段：category_id BIGINT NOT NULL
+     * - 关联 sensitive_categories 表
+     */
+    @TableField("category_id")
+    private Long categoryId;
+
+    /**
+     * 敏感词内容（必填）
+     *
+     * 说明：
+     * - 数据库字段：keyword VARCHAR(100) NOT NULL
      * - 敏感词的具体内容
      * - 长度限制：1-100 个字符
      */
@@ -63,24 +73,60 @@ public class SensitiveWords {
     private String keyword;
 
     /**
-     * 敏感词类别（必填）
+     * 匹配类型（必填）
      *
      * 说明：
-     * - 数据库字段：category VARCHAR(50) NOT NULL
-     * - 敏感词分类，如：政治、色情、暴力、违禁等
+     * - 数据库字段：match_type SMALLINT NOT NULL DEFAULT 1
+     * - 0: 精确匹配
+     * - 1: 模糊匹配
+     * - 2: 正则表达式匹配
      */
-    @TableField("category")
+    @TableField("match_type")
+    private Integer matchType;
+
+    /**
+     * 风险等级（必填）
+     *
+     * 说明：
+     * - 数据库字段：risk_level SMALLINT NOT NULL DEFAULT 2
+     * - 1: 低风险
+     * - 2: 中风险
+     * - 3: 高风险
+     */
+    @TableField("risk_level")
+    private Integer riskLevel;
+
+    /**
+     * 是否启用（必填）
+     *
+     * 说明：
+     * - 数据库字段：is_active BOOLEAN DEFAULT TRUE
+     * - true: 启用
+     * - false: 禁用
+     */
+    @TableField("is_active")
+    private Boolean isActive;
+
+    /**
+     * 敏感词类别（临时字段，用于向后兼容）
+     *
+     * 说明：
+     * - 此字段用于兼容旧代码
+     * - 新代码应使用 category_id 字段
+     */
+    @TableField(exist = false)
     private String category;
 
     /**
      * 创建人（必填）
      *
      * 说明：
-     * - 数据库字段：created_by VARCHAR(50) NOT NULL
-     * - 记录创建该敏感词的用户名
+     * - 数据库字段：created_by BIGINT NOT NULL
+     * - 记录创建该敏感词的用户ID
+     * - 外键关联 sys_user.user_id
      */
     @TableField("created_by")
-    private String createdBy;
+    private Long createdBy;
 
     /**
      * 创建时间（自动生成）
@@ -97,11 +143,12 @@ public class SensitiveWords {
      * 更新人（可选）
      *
      * 说明：
-     * - 数据库字段：updated_by VARCHAR(50)
-     * - 记录最后修改该敏感词的用户名
+     * - 数据库字段：updated_by BIGINT
+     * - 记录最后修改该敏感词的用户ID
+     * - 外键关联 sys_user.user_id
      */
     @TableField("updated_by")
-    private String updatedBy;
+    private Long updatedBy;
 
     /**
      * 更新时间（可选）

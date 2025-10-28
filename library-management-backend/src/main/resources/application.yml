@@ -64,11 +64,24 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+    # 开启 Swagger 增强模式
+    enable-swagger-models: true
+    enable-filter-multipart-api-method-type: POST
+
+# SpringDoc OpenAPI 配置
 springdoc:
   api-docs:
     enabled: true
+    path: /v3/api-docs
   swagger-ui:
     enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  # 扫描的包路径
+  packages-to-scan: com.library.management.module
+  # 扫描的路径
+  paths-to-match: /**
 
 # 服务器配置
 server:

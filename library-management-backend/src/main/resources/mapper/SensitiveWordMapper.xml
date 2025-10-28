@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.sensitiveword.mapper.SensitiveWordMapper">
+
+    <!-- 检测文本中的敏感词（模糊匹配） -->
+    <select id="detectSensitiveWords" resultType="com.library.management.module.sensitiveword.entity.SensitiveWords">
+        SELECT
+            word_id,
+            category_id,
+            keyword,
+            match_type,
+            risk_level,
+            is_active,
+            created_by,
+            create_time,
+            updated_by,
+            update_time
+        FROM sensitive_words
+        WHERE is_active = TRUE
+          AND (
+              -- 精确匹配（match_type = 0）
+              (match_type = 0 AND #{text} = keyword)
+              OR
+              -- 模糊匹配（match_type = 1）
+              (match_type = 1 AND #{text} ILIKE CONCAT('%', keyword, '%'))
+          )
+        ORDER BY risk_level DESC, LENGTH(keyword) DESC
+    </select>
+
+</mapper>

@@ -53,4 +53,14 @@ public interface ProblemBookMapper extends BaseMapper<ProblemBook> {
      */
     @Select("SELECT * FROM problem_books WHERE book_name = #{bookName} LIMIT 1")
     ProblemBook selectByBookName(@Param("bookName") String bookName);
+
+    /**
+     * 检测问题书目（ISBN 精确匹配 + 书名模糊匹配）
+     * 使用 PostgreSQL 的 similarity() 函数进行书名相似度匹配
+     *
+     * @param isbn ISBN 编号
+     * @param bookName 书名
+     * @return 命中的问题书目，如果不存在返回 null
+     */
+    ProblemBook detectProblemBook(@Param("isbn") String isbn, @Param("bookName") String bookName);
 }

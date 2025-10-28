@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.detection.mapper.BooklistCheckTaskMapper">
+
+    <!-- 分页查询检测任务列表 -->
+    <select id="selectTaskPage" resultType="com.library.management.module.detection.entity.BooklistCheckTask">
+        SELECT
+            task_id,
+            task_name,
+            task_type,
+            submitted_by,
+            submit_time,
+            start_time,
+            end_time,
+            original_filename,
+            file_path,
+            result_file_path,
+            status,
+            total_books,
+            sensitive_hits,
+            problem_book_hits,
+            non_whitelist_pubs,
+            total_problem_books,
+            error_message,
+            created_time,
+            update_time
+        FROM booklist_check_task
+        <where>
+            <if test="taskName != null and taskName != ''">
+                AND task_name ILIKE CONCAT('%', #{taskName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="submittedBy != null">
+                AND submitted_by = #{submittedBy}
+            </if>
+        </where>
+        ORDER BY submit_time DESC
+    </select>
+
+    <!-- 获取用户今天提交的任务数量 -->
+    <select id="countTodayTasksByUser" resultType="int">
+        SELECT COUNT(*)
+        FROM booklist_check_task
+        WHERE submitted_by = #{userId}
+          AND DATE(submit_time) = CURRENT_DATE
+    </select>
+
+</mapper>

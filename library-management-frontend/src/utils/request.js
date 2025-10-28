@@ -50,6 +50,11 @@ service.interceptors.response.use(
       console.log('📥 响应:', response.config.url, response.data)
     }
 
+    // 特殊处理：如果是文件下载（responseType 为 blob），直接返回数据
+    if (response.config.responseType === 'blob') {
+      return response.data
+    }
+
     const res = response.data
 
     /**
@@ -60,6 +65,19 @@ service.interceptors.response.use(
      *   data: { ... }     // 实际数据
      * }
      */
+
+    // 处理业务层面的未授权（token 过期或无效）
+    if (res.code === 401 || res.code === 403) {
+      ElMessage.error('登录已过期，请重新登录')
+      // 清除 token 和用户信息
+      localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      // 延迟跳转，确保消息能够显示
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1000)
+      return Promise.reject(new Error('登录已过期'))
+    }
 
     // 如果响应成功（code === 200）
     if (res.code === 200) {
@@ -80,13 +98,14 @@ service.interceptors.response.use(
 
       switch (status) {
         case 401:
-          ElMessage.error('未授权，请重新登录')
-          // 清除 token 并跳转到登录页
-          localStorage.removeItem('token')
-          window.location.href = '/login'
-          break
         case 403:
-          ElMessage.error('拒绝访问')
+          // 401 未授权或 403 拒绝访问（token 失效）
+          ElMessage.error('登录已过期，请重新登录')
+          // 清除 token 和用户信息
+          localStorage.removeItem('token')
+          localStorage.removeItem('userInfo')
+          // 跳转到登录页
+          window.location.href = '/login'
           break
         case 404:
           ElMessage.error('请求的资源不存在')

@@ -1,0 +1,27 @@
+
+    /**
+     * 获取所有敏感词分类
+     *
+     * @return 所有分类列表（包含 categoryId 和 categoryName）
+     */
+    @Override
+    public List<Map<String, Object>> getAllCategories() {
+        log.info("查询所有敏感词分类");
+
+        // 查询所有分类
+        var categories = sensitiveCategoryMapper.selectList(null);
+
+        // 转换为 Map 列表，方便前端使用
+        List<Map<String, Object>> result = categories.stream()
+                .map(category -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("categoryId", category.getCategoryId());
+                    map.put("categoryName", category.getCategoryName());
+                    map.put("description", category.getDescription());
+                    return map;
+                })
+                .toList();
+
+        log.info("查询分类完成，共 {} 条", result.size());
+        return result;
+    }

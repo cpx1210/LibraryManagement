@@ -142,3 +142,28 @@ export function getAllSensitiveWords() {
     method: 'get'
   })
 }
+
+/**
+ * 获取所有敏感词分类
+ * @returns {Promise} 所有分类列表
+ *
+ * 响应数据格式：
+ * {
+ *   code: 200,
+ *   message: "操作成功",
+ *   data: [
+ *     {
+ *       categoryId: 1,
+ *       categoryName: "违法违规",
+ *       description: "违反法律法规的内容"
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+export function getSensitiveWordCategories() {
+  return request({
+    url: '/sensitive-words/categories',
+    method: 'get'
+  })
+}

@@ -58,4 +58,12 @@ public interface UserService {
      * @param newPassword 新密码
      */
     void resetPassword(Long userId, String newPassword);
+
+    /**
+     * 根据用户名获取用户ID
+     *
+     * @param username 用户名
+     * @return 用户ID，如果用户不存在返回null
+     */
+    Long getUserIdByUsername(String username);
 }

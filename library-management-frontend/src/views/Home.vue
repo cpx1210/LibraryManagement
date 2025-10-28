@@ -4,7 +4,6 @@
     <el-aside :width="isCollapse ? '64px' : '200px'" class="layout-aside">
       <div class="logo">
         <span v-if="!isCollapse">图书馆管理</span>
-        <span v-else>📚</span>
       </div>
 
       <el-menu
@@ -214,6 +213,11 @@ const handleCommand = async (command) => {
 .layout-menu {
   border: none;
   background: #001529;
+  --el-menu-text-color: #ffffff;
+  --el-menu-hover-text-color: #ffffff;
+  --el-menu-bg-color: #001529;
+  --el-menu-hover-bg-color: #1890ff;
+  --el-menu-active-color: #ffffff;
 }
 
 .layout-menu:not(.el-menu--collapse) {

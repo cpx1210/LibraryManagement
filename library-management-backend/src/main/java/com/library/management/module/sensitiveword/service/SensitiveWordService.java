@@ -41,19 +41,19 @@ public interface SensitiveWordService {
      * 创建新敏感词
      *
      * @param request 敏感词创建请求
-     * @param createdBy 创建人用户名
+     * @param createdBy 创建人用户ID
      * @return 创建的敏感词信息
      */
-    SensitiveWordDTO createWord(SensitiveWordCreateRequest request, String createdBy);
+    SensitiveWordDTO createWord(SensitiveWordCreateRequest request, Long createdBy);
 
     /**
      * 修改敏感词信息
      *
      * @param request 敏感词修改请求
-     * @param updatedBy 修改人用户名
+     * @param updatedBy 修改人用户ID
      * @return 修改后的敏感词信息
      */
-    SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, String updatedBy);
+    SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, Long updatedBy);
 
     /**
      * 删除敏感词
@@ -66,10 +66,10 @@ public interface SensitiveWordService {
      * 批量导入敏感词
      *
      * @param file 上传的 Excel 文件
-     * @param createdBy 创建人用户名
+     * @param createdBy 创建人用户ID
      * @return 导入结果统计
      */
-    Map<String, Object> importWords(MultipartFile file, String createdBy);
+    Map<String, Object> importWords(MultipartFile file, Long createdBy);
 
     /**
      * 批量导出敏感词
@@ -92,4 +92,11 @@ public interface SensitiveWordService {
      * @return 所有敏感词列表
      */
     List<SensitiveWordDTO> getAllWords();
+
+    /**
+     * 获取所有敏感词分类
+     *
+     * @return 所有分类列表（包含 categoryId 和 categoryName）
+     */
+    List<Map<String, Object>> getAllCategories();
 }

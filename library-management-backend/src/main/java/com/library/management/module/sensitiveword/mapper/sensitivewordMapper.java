@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 /**
  * 敏感词 Mapper 接口
  *
@@ -44,6 +46,15 @@ public interface SensitiveWordMapper extends BaseMapper<SensitiveWords> {
      */
     @Select("SELECT * FROM sensitive_words WHERE keyword = #{keyword}")
     SensitiveWords selectByKeyword(@Param("keyword") String keyword);
+
+    /**
+     * 检测文本中的敏感词（模糊匹配）
+     * 使用 PostgreSQL 的 ILIKE 进行不区分大小写的模糊匹配
+     *
+     * @param text 待检测的文本（书名或作者名）
+     * @return 命中的敏感词列表
+     */
+    List<SensitiveWords> detectSensitiveWords(@Param("text") String text);
 }
 
 

@@ -264,6 +264,18 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
+     * 根据用户名获取用户ID
+     *
+     * @param username 用户名
+     * @return 用户ID，如果用户不存在返回null
+     */
+    @Override
+    public Long getUserIdByUsername(String username) {
+        SysUser user = userMapper.selectByUsername(username);
+        return user != null ? user.getUserId() : null;
+    }
+
+    /**
      * 实体转 DTO（过滤密码）
      */
     private UserDTO convertToDTO(SysUser user) {

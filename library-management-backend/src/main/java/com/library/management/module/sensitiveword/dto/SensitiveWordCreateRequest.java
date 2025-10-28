@@ -1,6 +1,7 @@
 package com.library.management.module.sensitiveword.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -24,9 +25,30 @@ public class SensitiveWordCreateRequest {
     private String keyword;
 
     /**
-     * 敏感词类别（必填，最多50字符）
+     * 敏感词分类ID（必填）
+     * 关联 sensitive_categories 表
      */
-    @NotBlank(message = "敏感词类别不能为空")
-    @Size(max = 50, message = "类别名称最多50个字符")
-    private String category;
+    @NotNull(message = "敏感词分类ID不能为空")
+    private Long categoryId;
+
+    /**
+     * 匹配类型（可选，默认为1-模糊匹配）
+     * 0: 精确匹配
+     * 1: 模糊匹配
+     * 2: 正则表达式匹配
+     */
+    private Integer matchType = 1;
+
+    /**
+     * 风险等级（可选，默认为2-中风险）
+     * 1: 低风险
+     * 2: 中风险
+     * 3: 高风险
+     */
+    private Integer riskLevel = 2;
+
+    /**
+     * 是否启用（可选，默认为true）
+     */
+    private Boolean isActive = true;
 }

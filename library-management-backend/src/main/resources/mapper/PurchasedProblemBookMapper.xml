@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.purchased.mapper.PurchasedProblemBookMapper">
+
+    <!-- 已购问题图书结果映射 -->
+    <resultMap id="BaseResultMap" type="com.library.management.module.purchased.entity.PurchasedProblemBook">
+        <id column="asset_code" property="assetCode" />
+        <result column="system_id" property="systemId" />
+        <result column="isbn" property="isbn" />
+        <result column="book_name" property="bookName" />
+        <result column="author" property="author" />
+        <result column="publisher" property="publisher" />
+        <result column="purchase_date" property="purchaseDate" />
+        <result column="location" property="location" />
+        <result column="problem_reason" property="problemReason" />
+        <result column="status" property="status" />
+        <result column="handler_id" property="handlerId" />
+        <result column="handler_date" property="handlerDate" />
+    </resultMap>
+
+</mapper>

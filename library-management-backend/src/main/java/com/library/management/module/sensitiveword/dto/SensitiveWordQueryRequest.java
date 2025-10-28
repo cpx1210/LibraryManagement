@@ -28,12 +28,24 @@ public class SensitiveWordQueryRequest {
     private String keyword;
 
     /**
-     * 敏感词类别（精确查询）
+     * 敏感词分类ID（精确查询）
      */
-    private String category;
+    private Long categoryId;
 
     /**
-     * 创建人（模糊查询）
+     * 匹配类型（精确查询）
+     * 0: 精确匹配, 1: 模糊匹配, 2: 正则表达式匹配
      */
-    private String createdBy;
+    private Integer matchType;
+
+    /**
+     * 风险等级（精确查询）
+     * 1: 低风险, 2: 中风险, 3: 高风险
+     */
+    private Integer riskLevel;
+
+    /**
+     * 是否启用（精确查询）
+     */
+    private Boolean isActive;
 }

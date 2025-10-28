@@ -7,6 +7,7 @@ import com.library.management.module.sensitiveword.dto.SensitiveWordDTO;
 import com.library.management.module.sensitiveword.dto.SensitiveWordQueryRequest;
 import com.library.management.module.sensitiveword.dto.SensitiveWordUpdateRequest;
 import com.library.management.module.sensitiveword.service.SensitiveWordService;
+import com.library.management.module.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,6 +38,7 @@ import java.util.Map;
 public class SensitiveWordController {
 
     private final SensitiveWordService sensitiveWordService;
+    private final UserService userService;
 
     /**
      * 分页查询敏感词列表
@@ -78,7 +80,9 @@ public class SensitiveWordController {
     public Result<SensitiveWordDTO> createWord(@Valid @RequestBody SensitiveWordCreateRequest request) {
         // 获取当前登录用户名
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        SensitiveWordDTO word = sensitiveWordService.createWord(request, currentUsername);
+        // 根据用户名获取用户ID
+        Long currentUserId = userService.getUserIdByUsername(currentUsername);
+        SensitiveWordDTO word = sensitiveWordService.createWord(request, currentUserId);
         return Result.success("敏感词创建成功", word);
     }
 
@@ -93,7 +97,9 @@ public class SensitiveWordController {
     public Result<SensitiveWordDTO> updateWord(@Valid @RequestBody SensitiveWordUpdateRequest request) {
         // 获取当前登录用户名
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        SensitiveWordDTO word = sensitiveWordService.updateWord(request, currentUsername);
+        // 根据用户名获取用户ID
+        Long currentUserId = userService.getUserIdByUsername(currentUsername);
+        SensitiveWordDTO word = sensitiveWordService.updateWord(request, currentUserId);
         return Result.success("敏感词修改成功", word);
     }
 
@@ -121,7 +127,9 @@ public class SensitiveWordController {
     public Result<Map<String, Object>> importWords(@RequestParam("file") MultipartFile file) {
         // 获取当前登录用户名
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        Map<String, Object> result = sensitiveWordService.importWords(file, currentUsername);
+        // 根据用户名获取用户ID
+        Long currentUserId = userService.getUserIdByUsername(currentUsername);
+        Map<String, Object> result = sensitiveWordService.importWords(file, currentUserId);
         return Result.success("导入完成", result);
     }
 
@@ -162,5 +170,21 @@ public class SensitiveWordController {
     public Result<List<SensitiveWordDTO>> getAllWords() {
         List<SensitiveWordDTO> words = sensitiveWordService.getAllWords();
         return Result.success(words);
+    }
+
+    /**
+     * 获取所有敏感词分类
+     *
+     * @return 所有分类列表
+     *
+     * 使用场景：
+     * - 前端下拉框选择分类
+     * - 前端筛选条件
+     */
+    @Operation(summary = "获取所有敏感词分类", description = "获取所有敏感词分类列表")
+    @GetMapping("/categories")
+    public Result<List<Map<String, Object>>> getAllCategories() {
+        List<Map<String, Object>> categories = sensitiveWordService.getAllCategories();
+        return Result.success(categories);
     }
 }

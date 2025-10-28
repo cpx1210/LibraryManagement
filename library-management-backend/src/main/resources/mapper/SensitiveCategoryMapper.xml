@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.sensitiveword.mapper.SensitiveCategoryMapper">
+
+    <!-- 敏感词分类结果映射 -->
+    <resultMap id="BaseResultMap" type="com.library.management.module.sensitiveword.entity.SensitiveCategory">
+        <id column="category_id" property="categoryId" />
+        <result column="category_name" property="categoryName" />
+        <result column="description" property="description" />
+        <result column="created_by" property="createdBy" />
+        <result column="create_time" property="createTime" />
+        <result column="updated_by" property="updatedBy" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+</mapper>

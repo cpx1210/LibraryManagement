@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SensitiveWordServiceImpl implements SensitiveWordService {
 
     private final SensitiveWordMapper sensitiveWordMapper;
+    private final com.library.management.module.sensitiveword.mapper.SensitiveCategoryMapper sensitiveCategoryMapper;
 
     /**
      * 分页查询敏感词列表
@@ -66,14 +67,24 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             wrapper.like(SensitiveWords::getKeyword, request.getKeyword());
         }
 
-        // 类别精确查询
-        if (StringUtils.hasText(request.getCategory())) {
-            wrapper.eq(SensitiveWords::getCategory, request.getCategory());
+        // 分类ID精确查询
+        if (request.getCategoryId() != null) {
+            wrapper.eq(SensitiveWords::getCategoryId, request.getCategoryId());
         }
 
-        // 创建人模糊查询
-        if (StringUtils.hasText(request.getCreatedBy())) {
-            wrapper.like(SensitiveWords::getCreatedBy, request.getCreatedBy());
+        // 匹配类型精确查询
+        if (request.getMatchType() != null) {
+            wrapper.eq(SensitiveWords::getMatchType, request.getMatchType());
+        }
+
+        // 风险等级精确查询
+        if (request.getRiskLevel() != null) {
+            wrapper.eq(SensitiveWords::getRiskLevel, request.getRiskLevel());
+        }
+
+        // 是否启用精确查询
+        if (request.getIsActive() != null) {
+            wrapper.eq(SensitiveWords::getIsActive, request.getIsActive());
         }
 
         // 按创建时间倒序排序
@@ -107,8 +118,9 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * 创建新敏感词
      *
      * 业务逻辑：
-     * 1. 检查敏感词内容是否已存在
-     * 2. 创建敏感词对象并保存到数据库
+     * 1. 验证分类ID是否存在
+     * 2. 检查敏感词内容是否已存在
+     * 3. 创建敏感词对象并保存到数据库
      *
      * @CacheEvict 注解：
      * - 方法执行后清除指定缓存
@@ -117,27 +129,36 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
-    public SensitiveWordDTO createWord(SensitiveWordCreateRequest request, String createdBy) {
-        // 1. 检查敏感词是否已存在
+    public SensitiveWordDTO createWord(SensitiveWordCreateRequest request, Long createdBy) {
+        // 1. 验证分类ID是否存在
+        var category = sensitiveCategoryMapper.selectById(request.getCategoryId());
+        if (category == null) {
+            throw new BusinessException("敏感词分类不存在");
+        }
+
+        // 2. 检查敏感词是否已存在
         SensitiveWords existingWord = sensitiveWordMapper.selectByKeyword(request.getKeyword());
         if (existingWord != null) {
             throw new BusinessException("敏感词已存在");
         }
 
-        // 2. 创建敏感词对象
+        // 3. 创建敏感词对象
         SensitiveWords word = SensitiveWords.builder()
                 .keyword(request.getKeyword())
-                .category(request.getCategory())
+                .categoryId(request.getCategoryId())
+                .matchType(request.getMatchType())
+                .riskLevel(request.getRiskLevel())
+                .isActive(request.getIsActive())
                 .createdBy(createdBy)
                 .build();
 
-        // 3. 保存到数据库
+        // 4. 保存到数据库
         int rows = sensitiveWordMapper.insert(word);
         if (rows == 0) {
             throw new BusinessException("创建敏感词失败");
         }
 
-        // 4. 返回敏感词信息
+        // 5. 返回敏感词信息
         return convertToDTO(word);
     }
 
@@ -146,21 +167,31 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      *
      * 业务逻辑：
      * 1. 检查敏感词是否存在
-     * 2. 如果修改敏感词内容，检查新内容是否已被其他敏感词占用
-     * 3. 更新敏感词信息（只更新非空字段）
+     * 2. 如果修改分类ID，验证分类是否存在
+     * 3. 如果修改敏感词内容，检查新内容是否已被其他敏感词占用
+     * 4. 更新敏感词信息（只更新非空字段）
      *
      * @CacheEvict：修改后清除缓存
      */
     @Override
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
-    public SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, String updatedBy) {
+    public SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, Long updatedBy) {
         // 1. 检查敏感词是否存在
         SensitiveWords word = sensitiveWordMapper.selectById(request.getWordId());
         if (word == null) {
             throw new BusinessException("敏感词不存在");
         }
 
-        // 2. 如果修改了敏感词内容，检查新内容是否已被其他敏感词占用
+        // 2. 如果修改了分类ID，验证分类是否存在
+        if (request.getCategoryId() != null) {
+            var category = sensitiveCategoryMapper.selectById(request.getCategoryId());
+            if (category == null) {
+                throw new BusinessException("敏感词分类不存在");
+            }
+            word.setCategoryId(request.getCategoryId());
+        }
+
+        // 3. 如果修改了敏感词内容，检查新内容是否已被其他敏感词占用
         if (StringUtils.hasText(request.getKeyword()) && !request.getKeyword().equals(word.getKeyword())) {
             SensitiveWords existingWord = sensitiveWordMapper.selectByKeyword(request.getKeyword());
             if (existingWord != null) {
@@ -169,22 +200,28 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             word.setKeyword(request.getKeyword());
         }
 
-        // 3. 更新其他字段（只更新非空字段）
-        if (StringUtils.hasText(request.getCategory())) {
-            word.setCategory(request.getCategory());
+        // 4. 更新其他字段（只更新非空字段）
+        if (request.getMatchType() != null) {
+            word.setMatchType(request.getMatchType());
+        }
+        if (request.getRiskLevel() != null) {
+            word.setRiskLevel(request.getRiskLevel());
+        }
+        if (request.getIsActive() != null) {
+            word.setIsActive(request.getIsActive());
         }
 
-        // 4. 设置更新人和更新时间
+        // 5. 设置更新人和更新时间
         word.setUpdatedBy(updatedBy);
         word.setUpdateTime(LocalDateTime.now());
 
-        // 5. 保存到数据库
+        // 6. 保存到数据库
         int rows = sensitiveWordMapper.updateById(word);
         if (rows == 0) {
             throw new BusinessException("修改敏感词失败");
         }
 
-        // 6. 返回修改后的敏感词信息
+        // 7. 返回修改后的敏感词信息
         return convertToDTO(word);
     }
 
@@ -226,7 +263,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
-    public Map<String, Object> importWords(MultipartFile file, String createdBy) {
+    public Map<String, Object> importWords(MultipartFile file, Long createdBy) {
         // 1. 读取 Excel 文件
         List<SensitiveWordExcelDTO> excelDataList = ExcelUtil.read(file, SensitiveWordExcelDTO.class);
 
@@ -252,7 +289,14 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                     return;
                 }
 
-                // 检查是否已存在
+                // 根据分类名称查询分类ID
+                var category = sensitiveCategoryMapper.selectByCategoryName(excelData.getCategory());
+                if (category == null) {
+                    errorList.add("第 " + rowIndex.get() + " 行：敏感词分类「" + excelData.getCategory() + "」不存在");
+                    return;
+                }
+
+                // 检查敏感词是否已存在
                 SensitiveWords existingWord = sensitiveWordMapper.selectByKeyword(excelData.getKeyword());
                 if (existingWord != null) {
                     errorList.add("第 " + rowIndex.get() + " 行：敏感词「" + excelData.getKeyword() + "」已存在");
@@ -262,7 +306,10 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                 // 转换为实体对象
                 SensitiveWords word = SensitiveWords.builder()
                         .keyword(excelData.getKeyword())
-                        .category(excelData.getCategory())
+                        .categoryId(category.getCategoryId())
+                        .matchType(1)  // 默认模糊匹配
+                        .riskLevel(2)  // 默认中风险
+                        .isActive(true) // 默认启用
                         .createdBy(createdBy)
                         .build();
 
@@ -318,23 +365,32 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             if (StringUtils.hasText(request.getKeyword())) {
                 wrapper.like(SensitiveWords::getKeyword, request.getKeyword());
             }
-            if (StringUtils.hasText(request.getCategory())) {
-                wrapper.eq(SensitiveWords::getCategory, request.getCategory());
+            if (request.getCategoryId() != null) {
+                wrapper.eq(SensitiveWords::getCategoryId, request.getCategoryId());
             }
-            if (StringUtils.hasText(request.getCreatedBy())) {
-                wrapper.like(SensitiveWords::getCreatedBy, request.getCreatedBy());
+            if (request.getMatchType() != null) {
+                wrapper.eq(SensitiveWords::getMatchType, request.getMatchType());
+            }
+            if (request.getRiskLevel() != null) {
+                wrapper.eq(SensitiveWords::getRiskLevel, request.getRiskLevel());
+            }
+            if (request.getIsActive() != null) {
+                wrapper.eq(SensitiveWords::getIsActive, request.getIsActive());
             }
         }
 
         wrapper.orderByDesc(SensitiveWords::getCreateTime);
         List<SensitiveWords> wordList = sensitiveWordMapper.selectList(wrapper);
 
-        // 2. 转换为 Excel DTO
+        // 2. 转换为 Excel DTO（需要关联查询分类名称）
         List<SensitiveWordExcelDTO> excelDataList = wordList.stream()
-                .map(word -> SensitiveWordExcelDTO.builder()
-                        .keyword(word.getKeyword())
-                        .category(word.getCategory())
-                        .build())
+                .map(word -> {
+                    var category = sensitiveCategoryMapper.selectById(word.getCategoryId());
+                    return SensitiveWordExcelDTO.builder()
+                            .keyword(word.getKeyword())
+                            .category(category != null ? category.getCategoryName() : "未知分类")
+                            .build();
+                })
                 .toList();
 
         // 3. 导出 Excel
@@ -399,11 +455,55 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
     }
 
     /**
-     * 实体转 DTO
+     * 获取所有敏感词分类
+     *
+     * @return 所有分类列表（包含
+    categoryId 和 categoryName）
+     */
+    @Override
+    public List<Map<String, Object>>
+    getAllCategories() {
+        log.info("查询所有敏感词分类");
+
+        // 查询所有分类
+        var categories =
+                sensitiveCategoryMapper.selectList(null);
+
+        // 转换为 Map 列表，方便前端使用
+        List<Map<String, Object>> result = categories.stream().map(category -> {
+            Map<String, Object>
+                    map = new HashMap<>();
+            map.put("categoryId",
+                    category.getCategoryId());
+
+            map.put("categoryName",
+                    category.getCategoryName());
+            map.put("description",
+                    category.getDescription());
+            return map;
+                        })
+                        .toList();
+
+        log.info("查询分类完成，共 {} 条",
+                result.size());
+        return result;
+    }
+
+    /**
+     * 实体转 DTO（包含关联查询分类名称）
      */
     private SensitiveWordDTO convertToDTO(SensitiveWords word) {
         SensitiveWordDTO dto = new SensitiveWordDTO();
         BeanUtils.copyProperties(word, dto);
+
+        // 关联查询分类名称
+        if (word.getCategoryId() != null) {
+            var category = sensitiveCategoryMapper.selectById(word.getCategoryId());
+            if (category != null) {
+                dto.setCategoryName(category.getCategoryName());
+            }
+        }
+
         return dto;
     }
 }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.problembook.mapper.ProblemBookMapper">
+
+    <!-- 检测问题书目（ISBN 精确匹配 + 书名相似度匹配） -->
+    <select id="detectProblemBook" resultType="com.library.management.module.problembook.entity.ProblemBook">
+        SELECT
+            book_id,
+            book_name,
+            author,
+            isbn,
+            publisher,
+            publish_year,
+            problem_type,
+            source,
+            created_by,
+            create_time,
+            updated_by,
+            update_time
+        FROM problem_books
+        WHERE
+            -- ISBN 精确匹配（优先级最高）
+            isbn = #{isbn}
+            OR
+            -- 书名相似度匹配（使用 PostgreSQL 的 similarity 函数）
+            -- 相似度阈值设置为 0.6（60% 相似度）
+            (#{bookName} IS NOT NULL AND similarity(book_name, #{bookName}) > 0.6)
+        ORDER BY
+            -- 优先返回 ISBN 匹配的结果
+            CASE WHEN isbn = #{isbn} THEN 1 ELSE 2 END,
+            -- 然后按书名相似度排序
+            similarity(book_name, #{bookName}) DESC
+        LIMIT 1
+    </select>
+
+</mapper>
