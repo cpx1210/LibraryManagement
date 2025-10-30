@@ -14,7 +14,8 @@ import java.util.List;
  * 3. 出版社白名单检测（精确匹配）
  * 4. 综合检测（整合三种检测结果）
  */
-public interface DetectionEngine {
+public interface
+DetectionEngine {
 
     /**
      * 检测单本书

@@ -67,6 +67,34 @@ const routes = [
           requiresAuth: true,
           title: '出版社白名单管理'
         }
+      },
+      // 书单检测模块
+      {
+        path: '/detection/check',
+        name: 'BooklistCheck',
+        component: () => import('@/views/detection/BooklistCheck.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '书单检测'
+        }
+      },
+      {
+        path: '/detection/history',
+        name: 'CheckHistory',
+        component: () => import('@/views/detection/CheckHistory.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '检测历史记录'
+        }
+      },
+      {
+        path: '/detection/result/:taskId',
+        name: 'CheckResult',
+        component: () => import('@/views/detection/CheckResult.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '检测结果详情'
+        }
       }
     ]
   },

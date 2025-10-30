@@ -48,10 +48,20 @@
           </el-menu-item>
         </el-sub-menu>
 
-        <el-menu-item index="/detection">
-          <el-icon><Search /></el-icon>
-          <template #title>书单检测</template>
-        </el-menu-item>
+        <el-sub-menu index="detection">
+          <template #title>
+            <el-icon><Search /></el-icon>
+            <span>书单检测</span>
+          </template>
+          <el-menu-item index="/detection/check">
+            <el-icon><Upload /></el-icon>
+            <template #title>检测书单</template>
+          </el-menu-item>
+          <el-menu-item index="/detection/history">
+            <el-icon><Clock /></el-icon>
+            <template #title>检测历史</template>
+          </el-menu-item>
+        </el-sub-menu>
 
         <el-menu-item index="/purchased-books">
           <el-icon><Reading /></el-icon>
@@ -130,6 +140,8 @@ import {
   DocumentDelete,
   DocumentChecked,
   Search,
+  Upload,
+  Clock,
   Reading,
   Document,
   Fold,
