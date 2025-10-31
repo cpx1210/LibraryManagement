@@ -27,6 +27,11 @@ public class DetectionResultDTO {
     private String bookName;
 
     /**
+     * 副题名
+     */
+    private String subtitle;
+
+    /**
      * 作者
      */
     private String author;
@@ -35,6 +40,21 @@ public class DetectionResultDTO {
      * 出版社
      */
     private String publisher;
+
+    /**
+     * 出版地
+     */
+    private String publishLocation;
+
+    /**
+     * 读者对象
+     */
+    private String targetAudience;
+
+    /**
+     * 内容简介
+     */
+    private String contentSummary;
 
     /**
      * 是否命中敏感词

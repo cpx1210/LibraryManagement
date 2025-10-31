@@ -55,6 +55,15 @@ public interface SensitiveWordMapper extends BaseMapper<SensitiveWords> {
      * @return 命中的敏感词列表
      */
     List<SensitiveWords> detectSensitiveWords(@Param("text") String text);
+
+    /**
+     * 根据检测类型查询所有启用的敏感词
+     *
+     * @param detectionType 检测类型（关键词、书名、作者）
+     * @return 敏感词列表
+     */
+    @Select("SELECT * FROM sensitive_words WHERE detection_type = #{detectionType} AND is_active = true ORDER BY risk_level DESC")
+    List<SensitiveWords> detectSensitiveWordsByType(@Param("detectionType") String detectionType);
 }
 
 

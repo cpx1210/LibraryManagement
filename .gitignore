@@ -23,9 +23,6 @@ bin/
 # ==================== 后端 (Spring Boot + Maven) ====================
 # Maven
 library-management-backend/target/
-library-management-backend/.mvn/
-library-management-backend/mvnw
-library-management-backend/mvnw.cmd
 
 # Spring Boot
 library-management-backend/HELP.md

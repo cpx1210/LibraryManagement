@@ -105,12 +105,76 @@ LibraryManagement/
 
 ### 环境要求
 
-- **JDK**: 17+
+- **JDK**: 21
 - **Node.js**: 18+
 - **PostgreSQL**: 15+
-- **Maven**: 3.9+
 
-### 后端启动
+### 如何确认当前 JDK 版本（Windows）
+
+- 命令行查看 Java 版本：
+
+```powershell
+java -version
+```
+
+输出中应包含 `version "17`（或更高但兼容的 17 LTS 版本）。
+
+- 查看 `JAVA_HOME`：
+
+```powershell
+echo %JAVA_HOME%
+```
+
+若为空，请安装 JDK 17 并配置系统环境变量 `JAVA_HOME` 指向 JDK 根目录，`Path` 中包含 `%JAVA_HOME%\bin`。
+
+- 也可用 Maven Wrapper 验证 JDK：
+
+```powershell
+cd library-management-backend
+./mvnw -v
+```
+
+输出里会显示 `Java version: 17`。
+
+### 一键启动
+
+1) 数据库准备（PostgreSQL）
+
+- 创建数据库 `library_management`
+- 在数据库中执行脚本：
+  - `library-management-backend/src/main/resources/db/schema.sql`
+  - `library-management-backend/src/main/resources/db/data.sql`
+- 如果你本机数据库账号密码不同，请修改：
+  `library-management-backend/src/main/resources/application-dev.yml` 中的 `spring.datasource.username/password`
+
+2) 启动后端（无需安装 Maven）
+
+```powershell
+cd library-management-backend
+build.bat   # 首次构建
+run.bat     # 启动服务
+```
+
+后端访问地址：
+- 接口：`http://localhost:8080/api`
+- 文档：`http://localhost:8080/api/doc.html`
+
+3) 启动前端
+
+```powershell
+cd library-management-frontend
+npm install
+npm run dev
+```
+
+前端访问地址：`http://localhost:5173`
+
+4) 默认账号
+
+- 管理员：`admin / admin123`
+- 普通用户：`testuser / password123`
+
+### 后端启动（进阶）
 
 1. **创建数据库**
 
@@ -131,11 +195,11 @@ spring:
     password: your_password
 ```
 
-3. **启动后端**
+3. **启动后端**（无需安装 Maven）
 
 ```bash
 cd library-management-backend
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 后端访问地址：

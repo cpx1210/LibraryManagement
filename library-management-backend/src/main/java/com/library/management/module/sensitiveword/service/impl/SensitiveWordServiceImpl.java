@@ -251,13 +251,18 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
     }
 
     /**
-     * 批量导入敏感词
+     * 批量导入敏感词（更新版 - 适配新模板）
      *
      * 业务逻辑：
-     * 1. 读取 Excel 文件
-     * 2. 校验数据（必填字段检查、重复性检查）
+     * 1. 读取 Excel 文件（新格式：类型、关键词、警报信息）
+     * 2. 校验数据（必填字段检查、类型校验、重复性检查）
      * 3. 批量插入数据库
      * 4. 返回导入结果统计
+     *
+     * 新模板列结构：
+     * - 类型（关键词/书名/作者）
+     * - 关键词
+     * - 警报信息
      *
      * @CacheEvict：导入后清除缓存
      */
@@ -279,37 +284,41 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         excelDataList.forEach(excelData -> {
             rowIndex.incrementAndGet();
             try {
-                // 校验必填字段
-                if (!StringUtils.hasText(excelData.getKeyword())) {
-                    errorList.add("第 " + rowIndex.get() + " 行：敏感词内容不能为空");
+                // 校验必填字段：类型和关键词
+                if (!StringUtils.hasText(excelData.getDetectionType())) {
+                    errorList.add("第 " + rowIndex.get() + " 行：类型不能为空（必须是：关键词、书名、作者之一）");
                     return;
                 }
-                if (!StringUtils.hasText(excelData.getCategory())) {
-                    errorList.add("第 " + rowIndex.get() + " 行：敏感词类别不能为空");
+                if (!StringUtils.hasText(excelData.getKeyword())) {
+                    errorList.add("第 " + rowIndex.get() + " 行：关键词不能为空");
                     return;
                 }
 
-                // 根据分类名称查询分类ID
-                var category = sensitiveCategoryMapper.selectByCategoryName(excelData.getCategory());
-                if (category == null) {
-                    errorList.add("第 " + rowIndex.get() + " 行：敏感词分类「" + excelData.getCategory() + "」不存在");
+                // 校验类型是否合法
+                String detectionType = excelData.getDetectionType().trim();
+                if (!detectionType.equals("关键词") && !detectionType.equals("书名") && !detectionType.equals("作者")) {
+                    errorList.add("第 " + rowIndex.get() + " 行：类型「" + detectionType + "」无效，必须是：关键词、书名、作者之一");
                     return;
                 }
 
                 // 检查敏感词是否已存在
-                SensitiveWords existingWord = sensitiveWordMapper.selectByKeyword(excelData.getKeyword());
+                SensitiveWords existingWord = sensitiveWordMapper.selectByKeyword(excelData.getKeyword().trim());
                 if (existingWord != null) {
-                    errorList.add("第 " + rowIndex.get() + " 行：敏感词「" + excelData.getKeyword() + "」已存在");
+                    errorList.add("第 " + rowIndex.get() + " 行：关键词「" + excelData.getKeyword() + "」已存在");
                     return;
                 }
 
                 // 转换为实体对象
                 SensitiveWords word = SensitiveWords.builder()
-                        .keyword(excelData.getKeyword())
-                        .categoryId(category.getCategoryId())
-                        .matchType(1)  // 默认模糊匹配
-                        .riskLevel(2)  // 默认中风险
-                        .isActive(true) // 默认启用
+                        .keyword(excelData.getKeyword().trim())
+                        .detectionType(detectionType)
+                        .alertMessage(StringUtils.hasText(excelData.getAlertMessage())
+                                ? excelData.getAlertMessage().trim()
+                                : null)
+                        .categoryId(1L)  // 默认分类ID（可根据实际情况调整）
+                        .matchType(1)    // 默认模糊匹配
+                        .riskLevel(2)    // 默认中风险
+                        .isActive(true)  // 默认启用
                         .createdBy(createdBy)
                         .build();
 
@@ -329,7 +338,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                     successCount++;
                 } catch (Exception e) {
                     log.error("插入敏感词失败: {}", word.getKeyword(), e);
-                    errorList.add("敏感词「" + word.getKeyword() + "」保存失败：" + e.getMessage());
+                    errorList.add("关键词「" + word.getKeyword() + "」保存失败：" + e.getMessage());
                 }
             }
         }
@@ -348,12 +357,17 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
     }
 
     /**
-     * 批量导出敏感词
+     * 批量导出敏感词（更新版 - 适配新模板）
      *
      * 业务逻辑：
      * 1. 根据查询条件获取数据（如果没有条件则导出全部）
-     * 2. 转换为 Excel DTO
+     * 2. 转换为 Excel DTO（新格式：类型、关键词、警报信息）
      * 3. 使用 ExcelUtil 写入响应流
+     *
+     * 导出列结构：
+     * - 类型（关键词/书名/作者）
+     * - 关键词
+     * - 警报信息
      */
     @Override
     public void exportWords(HttpServletResponse response, SensitiveWordQueryRequest request) {
@@ -382,15 +396,13 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         wrapper.orderByDesc(SensitiveWords::getCreateTime);
         List<SensitiveWords> wordList = sensitiveWordMapper.selectList(wrapper);
 
-        // 2. 转换为 Excel DTO（需要关联查询分类名称）
+        // 2. 转换为 Excel DTO（新格式）
         List<SensitiveWordExcelDTO> excelDataList = wordList.stream()
-                .map(word -> {
-                    var category = sensitiveCategoryMapper.selectById(word.getCategoryId());
-                    return SensitiveWordExcelDTO.builder()
-                            .keyword(word.getKeyword())
-                            .category(category != null ? category.getCategoryName() : "未知分类")
-                            .build();
-                })
+                .map(word -> SensitiveWordExcelDTO.builder()
+                        .detectionType(word.getDetectionType() != null ? word.getDetectionType() : "关键词")
+                        .keyword(word.getKeyword())
+                        .alertMessage(word.getAlertMessage())
+                        .build())
                 .toList();
 
         // 3. 导出 Excel
@@ -400,25 +412,64 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
     }
 
     /**
-     * 下载敏感词导入模板
+     * 下载敏感词导入模板（更新版 - 适配新模板）
      *
      * 生成一个包含示例数据的模板文件
+     *
+     * 模板列结构：
+     * - 类型（关键词/书名/作者）
+     * - 关键词
+     * - 警报信息
      */
     @Override
     public void downloadTemplate(HttpServletResponse response) {
-        // 创建示例数据
+        // 创建示例数据（参考实际敏感词数据）
         List<SensitiveWordExcelDTO> templateData = new ArrayList<>();
+
+        // 关键词类型示例
         templateData.add(SensitiveWordExcelDTO.builder()
-                .keyword("示例敏感词1")
-                .category("政治")
+                .detectionType("关键词")
+                .keyword("澳门博彩")
+                .alertMessage("疑似赌博相关")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
-                .keyword("示例敏感词2")
-                .category("色情")
+                .detectionType("关键词")
+                .keyword("法轮功")
+                .alertMessage("疑似敏感政治内容")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
-                .keyword("示例敏感词3")
-                .category("暴力")
+                .detectionType("关键词")
+                .keyword("警察&腐败")
+                .alertMessage("疑似敏感政治内容")
+                .build());
+
+        // 书名类型示例
+        templateData.add(SensitiveWordExcelDTO.builder()
+                .detectionType("书名")
+                .keyword("儿子与情人")
+                .alertMessage("疑似不良价值观内容")
+                .build());
+        templateData.add(SensitiveWordExcelDTO.builder()
+                .detectionType("书名")
+                .keyword("一个女人的史诗")
+                .alertMessage("疑似敏感政治内容")
+                .build());
+
+        // 作者类型示例
+        templateData.add(SensitiveWordExcelDTO.builder()
+                .detectionType("作者")
+                .keyword("白先勇")
+                .alertMessage("疑似敏感政治内容")
+                .build());
+        templateData.add(SensitiveWordExcelDTO.builder()
+                .detectionType("作者")
+                .keyword("蔡英文")
+                .alertMessage("疑似敏感政治内容")
+                .build());
+        templateData.add(SensitiveWordExcelDTO.builder()
+                .detectionType("作者")
+                .keyword("柴静")
+                .alertMessage("疑似敏感政治内容")
                 .build());
 
         // 导出模板

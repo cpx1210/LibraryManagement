@@ -6,12 +6,12 @@ echo ========================================
 echo.
 
 echo 正在清理旧的构建文件...
-call mvn clean
+call .\mvnw clean
 
 echo.
 echo 正在编译并安装依赖...
 echo （首次运行会下载依赖包，可能需要几分钟）
-call mvn install -DskipTests
+call .\mvnw install -DskipTests
 
 if errorlevel 1 (
     echo.

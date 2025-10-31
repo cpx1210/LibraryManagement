@@ -97,6 +97,29 @@ public class SensitiveWords {
     private Integer riskLevel;
 
     /**
+     * 检测类型（必填）
+     *
+     * 说明：
+     * - 数据库字段：detection_type VARCHAR(20) NOT NULL DEFAULT '关键词'
+     * - 关键词: 在书名、作者、内容简介等全部字段中检测
+     * - 书名: 仅在书名（题名）字段中检测
+     * - 作者: 仅在作者（著者1、著者2）字段中检测
+     */
+    @TableField("detection_type")
+    private String detectionType;
+
+    /**
+     * 警报信息（可选）
+     *
+     * 说明：
+     * - 数据库字段：alert_message VARCHAR(200)
+     * - 命中该敏感词时显示的提示信息
+     * - 用于提供更详细的风险说明
+     */
+    @TableField("alert_message")
+    private String alertMessage;
+
+    /**
      * 是否启用（必填）
      *
      * 说明：

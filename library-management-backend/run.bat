@@ -5,7 +5,7 @@ echo 图书馆问题图书管理系统 - 启动应用
 echo ========================================
 echo.
 
-echo [提示] 首次运行请先执行：mvn clean install
+echo [提示] 首次运行请先执行：mvnw clean install （无需安装 Maven）
 echo.
 echo 正在启动应用...
 echo 启动地址：http://localhost:8080/api
@@ -15,5 +15,5 @@ echo 按 Ctrl+C 可停止应用
 echo ========================================
 echo.
 
-call mvn spring-boot:run
+call .\mvnw spring-boot:run
 

@@ -3,7 +3,7 @@
 -- =====================================================
 -- Database: PostgreSQL 15.x
 -- Encoding: UTF-8
--- Updated: 2025-10-27
+-- Updated: 2025-10-30
 -- Description: Creates all database tables from scratch
 -- =====================================================
 
@@ -89,6 +89,8 @@ CREATE TABLE sensitive_words (
     keyword VARCHAR(100) NOT NULL,
     match_type SMALLINT NOT NULL DEFAULT 1 CHECK (match_type IN (0, 1, 2)),
     risk_level SMALLINT NOT NULL DEFAULT 2 CHECK (risk_level IN (1, 2, 3)),
+    detection_type VARCHAR(20) NOT NULL DEFAULT '关键词' CHECK (detection_type IN ('关键词', '书名', '作者')),
+    alert_message VARCHAR(200),
     is_active BOOLEAN DEFAULT TRUE,
     created_by BIGINT NOT NULL,
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -101,6 +103,7 @@ CREATE TABLE sensitive_words (
 
 CREATE INDEX idx_sw_keyword ON sensitive_words USING GIN (keyword gin_trgm_ops);
 CREATE INDEX idx_sw_category_id ON sensitive_words(category_id);
+CREATE INDEX idx_sw_detection_type ON sensitive_words(detection_type);
 CREATE INDEX idx_sw_is_active ON sensitive_words(is_active);
 
 COMMENT ON TABLE sensitive_words IS 'Sensitive Words Table';
@@ -109,6 +112,8 @@ COMMENT ON COLUMN sensitive_words.category_id IS 'Category ID (FK -> sensitive_c
 COMMENT ON COLUMN sensitive_words.keyword IS 'Sensitive Keyword (max 100 chars)';
 COMMENT ON COLUMN sensitive_words.match_type IS 'Match Type: 0-Exact, 1-Fuzzy, 2-Regex';
 COMMENT ON COLUMN sensitive_words.risk_level IS 'Risk Level: 1-Low, 2-Medium, 3-High';
+COMMENT ON COLUMN sensitive_words.detection_type IS 'Detection Type: 关键词-Global, 书名-BookName Only, 作者-Author Only';
+COMMENT ON COLUMN sensitive_words.alert_message IS 'Alert Message: Warning message when keyword is matched';
 COMMENT ON COLUMN sensitive_words.is_active IS 'Is Active (default true)';
 COMMENT ON COLUMN sensitive_words.created_by IS 'Creator User ID (FK -> sys_user.user_id)';
 COMMENT ON COLUMN sensitive_words.create_time IS 'Create Time';
@@ -316,10 +321,20 @@ DROP TABLE IF EXISTS booklist_check_detail CASCADE;
 CREATE TABLE booklist_check_detail (
     detail_id BIGSERIAL PRIMARY KEY,
     task_id BIGINT NOT NULL,
-    isbn VARCHAR(20),
+    book_number VARCHAR(50),
     book_name VARCHAR(500),
+    subtitle VARCHAR(200),
+    author1 VARCHAR(100),
+    author2 VARCHAR(100),
     author VARCHAR(100),
+    isbn VARCHAR(20),
+    publish_location VARCHAR(100),
     publisher VARCHAR(100),
+    publish_date VARCHAR(50),
+    target_audience VARCHAR(100),
+    content_summary TEXT,
+    classification_number VARCHAR(50),
+    language VARCHAR(50),
     hit_sensitive SMALLINT DEFAULT 0 CHECK (hit_sensitive IN (0, 1)),
     hit_problem_book SMALLINT DEFAULT 0 CHECK (hit_problem_book IN (0, 1)),
     is_whitelist_publisher SMALLINT DEFAULT 1 CHECK (is_whitelist_publisher IN (0, 1)),
@@ -340,13 +355,23 @@ CREATE INDEX idx_detail_publisher ON booklist_check_detail(publisher);
 CREATE INDEX idx_detail_risk_level ON booklist_check_detail(risk_level);
 CREATE INDEX idx_detail_check_status ON booklist_check_detail(check_status);
 
-COMMENT ON TABLE booklist_check_detail IS 'Booklist Check Detail Table';
+COMMENT ON TABLE booklist_check_detail IS 'Booklist Check Detail Table - Updated for new template (2025-10-30)';
 COMMENT ON COLUMN booklist_check_detail.detail_id IS 'Detail ID (Primary Key)';
 COMMENT ON COLUMN booklist_check_detail.task_id IS 'Task ID (FK -> booklist_check_task.task_id)';
+COMMENT ON COLUMN booklist_check_detail.book_number IS 'Book Number';
+COMMENT ON COLUMN booklist_check_detail.book_name IS 'Book Name (Title)';
+COMMENT ON COLUMN booklist_check_detail.subtitle IS 'Subtitle';
+COMMENT ON COLUMN booklist_check_detail.author1 IS 'Author 1 (First Author)';
+COMMENT ON COLUMN booklist_check_detail.author2 IS 'Author 2 (Second Author)';
+COMMENT ON COLUMN booklist_check_detail.author IS 'Combined Author (for compatibility)';
 COMMENT ON COLUMN booklist_check_detail.isbn IS 'ISBN';
-COMMENT ON COLUMN booklist_check_detail.book_name IS 'Book Name';
-COMMENT ON COLUMN booklist_check_detail.author IS 'Author';
+COMMENT ON COLUMN booklist_check_detail.publish_location IS 'Publish Location';
 COMMENT ON COLUMN booklist_check_detail.publisher IS 'Publisher';
+COMMENT ON COLUMN booklist_check_detail.publish_date IS 'Publish Date';
+COMMENT ON COLUMN booklist_check_detail.target_audience IS 'Target Audience';
+COMMENT ON COLUMN booklist_check_detail.content_summary IS 'Content Summary';
+COMMENT ON COLUMN booklist_check_detail.classification_number IS 'Classification Number';
+COMMENT ON COLUMN booklist_check_detail.language IS 'Language';
 COMMENT ON COLUMN booklist_check_detail.hit_sensitive IS 'Hit Sensitive Word: 1-Yes, 0-No';
 COMMENT ON COLUMN booklist_check_detail.hit_problem_book IS 'Hit Problem Book: 1-Yes, 0-No';
 COMMENT ON COLUMN booklist_check_detail.is_whitelist_publisher IS 'Is Whitelist Publisher: 1-Yes, 0-No';

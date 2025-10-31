@@ -61,15 +61,19 @@ public class DetectionEngineImpl implements DetectionEngine {
         DetectionResultDTO result = DetectionResultDTO.builder()
                 .isbn(book.getIsbn())
                 .bookName(book.getBookName())
+                .subtitle(book.getSubtitle())
                 .author(book.getAuthor())
                 .publisher(book.getPublisher())
+                .publishLocation(book.getPublishLocation())
+                .targetAudience(book.getTargetAudience())
+                .contentSummary(book.getContentSummary())
                 .hitSensitive(false)
                 .hitProblemBook(false)
                 .isWhitelistPublisher(false)
                 .sensitiveWords(new ArrayList<>())
                 .build();
 
-        // 1. 敏感词检测（书名 + 作者）
+        // 1. 敏感词检测（扩展的字段检测）
         detectSensitiveWords(result);
 
         // 2. 问题书目检测
@@ -129,29 +133,106 @@ public class DetectionEngineImpl implements DetectionEngine {
     }
 
     /**
-     * 敏感词检测
-     * 检测书名和作者中是否包含敏感词
+     * 敏感词检测（优化版）
+     * 根据敏感词的检测类型（关键词、书名、作者）进行精确检测
+     *
+     * 改进点：
+     * 1. 扩展"关键词"类型的检测字段（书名、副题名、作者、内容简介、读者对象等）
+     * 2. 支持 & 符号的 AND 逻辑（如"警察&腐败"需要同时包含两个词）
+     * 3. 书名和作者采用更精确的匹配方式
      *
      * @param result 检测结果（会被修改）
      */
     private void detectSensitiveWords(DetectionResultDTO result) {
         List<SensitiveWords> hitWords = new ArrayList<>();
 
-        // 检测书名中的敏感词
-        if (StringUtils.hasText(result.getBookName())) {
-            List<SensitiveWords> bookNameHits = sensitiveWordMapper.detectSensitiveWords(result.getBookName());
-            if (bookNameHits != null && !bookNameHits.isEmpty()) {
-                hitWords.addAll(bookNameHits);
-                log.debug("书名「{}」命中 {} 个敏感词", result.getBookName(), bookNameHits.size());
+        // 1. 检测"关键词"类型（全局检测：所有文本字段）
+        List<SensitiveWords> keywordTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("关键词");
+        if (keywordTypeWords != null && !keywordTypeWords.isEmpty()) {
+            for (SensitiveWords word : keywordTypeWords) {
+                String keyword = word.getKeyword();
+                boolean hit = false;
+                String hitField = "";
+
+                // 收集所有需要检测的文本字段
+                List<String> fieldsToCheck = new ArrayList<>();
+                if (StringUtils.hasText(result.getBookName())) fieldsToCheck.add(result.getBookName());
+                if (StringUtils.hasText(result.getSubtitle())) fieldsToCheck.add(result.getSubtitle());
+                if (StringUtils.hasText(result.getAuthor())) fieldsToCheck.add(result.getAuthor());
+                if (StringUtils.hasText(result.getPublisher())) fieldsToCheck.add(result.getPublisher());
+                if (StringUtils.hasText(result.getPublishLocation())) fieldsToCheck.add(result.getPublishLocation());
+                if (StringUtils.hasText(result.getTargetAudience())) fieldsToCheck.add(result.getTargetAudience());
+                if (StringUtils.hasText(result.getContentSummary())) fieldsToCheck.add(result.getContentSummary());
+
+                // 检测每个字段
+                for (String fieldText : fieldsToCheck) {
+                    if (matchKeyword(fieldText, keyword)) {
+                        hit = true;
+                        hitField = fieldText.length() > 20 ? fieldText.substring(0, 20) + "..." : fieldText;
+                        break;
+                    }
+                }
+
+                if (hit) {
+                    hitWords.add(word);
+                    log.debug("命中关键词类型敏感词：「{}」，命中内容：{}", keyword, hitField);
+                }
             }
         }
 
-        // 检测作者中的敏感词
-        if (StringUtils.hasText(result.getAuthor())) {
-            List<SensitiveWords> authorHits = sensitiveWordMapper.detectSensitiveWords(result.getAuthor());
-            if (authorHits != null && !authorHits.isEmpty()) {
-                hitWords.addAll(authorHits);
-                log.debug("作者「{}」命中 {} 个敏感词", result.getAuthor(), authorHits.size());
+        // 2. 检测"书名"类型（仅检测书名和副题名字段，使用精确匹配）
+        List<SensitiveWords> bookNameTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("书名");
+        if (bookNameTypeWords != null && !bookNameTypeWords.isEmpty()) {
+            for (SensitiveWords word : bookNameTypeWords) {
+                String keyword = word.getKeyword();
+                boolean hit = false;
+
+                // 检测书名（精确匹配或包含匹配）
+                if (StringUtils.hasText(result.getBookName())) {
+                    if (result.getBookName().equals(keyword) || result.getBookName().contains(keyword)) {
+                        hit = true;
+                    }
+                }
+
+                // 检测副题名
+                if (!hit && StringUtils.hasText(result.getSubtitle())) {
+                    if (result.getSubtitle().equals(keyword) || result.getSubtitle().contains(keyword)) {
+                        hit = true;
+                    }
+                }
+
+                if (hit) {
+                    hitWords.add(word);
+                    log.debug("书名「{}」命中书名类型敏感词：{}", result.getBookName(), keyword);
+                }
+            }
+        }
+
+        // 3. 检测"作者"类型（仅检测作者字段，处理多作者情况）
+        List<SensitiveWords> authorTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("作者");
+        if (authorTypeWords != null && !authorTypeWords.isEmpty()) {
+            for (SensitiveWords word : authorTypeWords) {
+                String keyword = word.getKeyword();
+                boolean hit = false;
+
+                // 检测作者字段（合并的作者字段）
+                if (StringUtils.hasText(result.getAuthor())) {
+                    // 分割多个作者（支持 ; , 、 等分隔符）
+                    String[] authors = result.getAuthor().split("[;,、]");
+                    for (String author : authors) {
+                        String trimmedAuthor = author.trim();
+                        // 精确匹配或包含匹配
+                        if (trimmedAuthor.equals(keyword) || trimmedAuthor.contains(keyword)) {
+                            hit = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hit) {
+                    hitWords.add(word);
+                    log.debug("作者「{}」命中作者类型敏感词：{}", result.getAuthor(), keyword);
+                }
             }
         }
 
@@ -174,6 +255,34 @@ public class DetectionEngineImpl implements DetectionEngine {
             result.setMaxSensitiveRiskLevel(maxRiskLevel);
 
             log.info("命中敏感词：{}，最高风险等级：{}", keywords, maxRiskLevel);
+        }
+    }
+
+    /**
+     * 关键词匹配（支持 & 符号的 AND 逻辑）
+     *
+     * @param text 待检测文本
+     * @param keyword 关键词（可能包含 & 符号）
+     * @return 是否匹配
+     */
+    private boolean matchKeyword(String text, String keyword) {
+        if (text == null || keyword == null) {
+            return false;
+        }
+
+        // 处理 & 符号（表示 AND 逻辑：必须同时包含所有部分）
+        if (keyword.contains("&")) {
+            String[] parts = keyword.split("&");
+            for (String part : parts) {
+                String trimmedPart = part.trim();
+                if (!text.contains(trimmedPart)) {
+                    return false;  // 任何一个部分不存在，都不算匹配
+                }
+            }
+            return true;  // 所有部分都存在
+        } else {
+            // 普通匹配
+            return text.contains(keyword);
         }
     }
 

@@ -103,10 +103,20 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         List<BooklistCheckDetail> details = books.stream()
                 .map(book -> BooklistCheckDetail.builder()
                         .taskId(task.getTaskId())
+                        .bookNumber(book.getBookNumber())
                         .isbn(book.getIsbn())
                         .bookName(book.getBookName())
-                        .author(book.getAuthor())
+                        .subtitle(book.getSubtitle())
+                        .author1(book.getAuthor1())
+                        .author2(book.getAuthor2())
+                        .author(book.getAuthor())  // 合并的作者字段
+                        .publishLocation(book.getPublishLocation())
                         .publisher(book.getPublisher())
+                        .publishDate(book.getPublishDate())
+                        .targetAudience(book.getTargetAudience())
+                        .contentSummary(book.getContentSummary())
+                        .classificationNumber(book.getClassificationNumber())
+                        .language(book.getLanguage())
                         .hitSensitive(0)
                         .hitProblemBook(0)
                         .isWhitelistPublisher(0)
@@ -163,10 +173,19 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
             // 3. 将明细转换为 BookItemDTO
             List<BookItemDTO> books = details.stream()
                     .map(detail -> BookItemDTO.builder()
-                            .isbn(detail.getIsbn())
+                            .bookNumber(detail.getBookNumber())
                             .bookName(detail.getBookName())
-                            .author(detail.getAuthor())
+                            .subtitle(detail.getSubtitle())
+                            .author1(detail.getAuthor1())
+                            .author2(detail.getAuthor2())
+                            .isbn(detail.getIsbn())
+                            .publishLocation(detail.getPublishLocation())
                             .publisher(detail.getPublisher())
+                            .publishDate(detail.getPublishDate())
+                            .targetAudience(detail.getTargetAudience())
+                            .contentSummary(detail.getContentSummary())
+                            .classificationNumber(detail.getClassificationNumber())
+                            .language(detail.getLanguage())
                             .build())
                     .collect(Collectors.toList());
 
@@ -414,6 +433,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
     /**
      * 解析 Excel 文件
+     *
+     * 新模板列结构：书号、题名、副题名、著者1、著者2、ISBN、出版地、出版社、出版日期、读者对象、内容简介、分类号、作品语种
      */
     private List<BookItemDTO> parseExcel(MultipartFile file) {
         List<BookItemDTO> books = new ArrayList<>();
@@ -434,16 +455,27 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                     continue;
                 }
 
+                // 新模板列映射：
+                // 0:书号  1:题名  2:副题名  3:著者1  4:著者2  5:ISBN  6:出版地  7:出版社  8:出版日期
+                // 9:读者对象  10:内容简介  11:分类号  12:作品语种
                 BookItemDTO book = BookItemDTO.builder()
-                        .isbn(getCellValue(row.getCell(0)))
+                        .bookNumber(getCellValue(row.getCell(0)))
                         .bookName(getCellValue(row.getCell(1)))
-                        .author(getCellValue(row.getCell(2)))
-                        .publisher(getCellValue(row.getCell(3)))
-                        .publishYear(getCellValue(row.getCell(4)))
+                        .subtitle(getCellValue(row.getCell(2)))
+                        .author1(getCellValue(row.getCell(3)))
+                        .author2(getCellValue(row.getCell(4)))
+                        .isbn(getCellValue(row.getCell(5)))
+                        .publishLocation(getCellValue(row.getCell(6)))
+                        .publisher(getCellValue(row.getCell(7)))
+                        .publishDate(getCellValue(row.getCell(8)))
+                        .targetAudience(getCellValue(row.getCell(9)))
+                        .contentSummary(getCellValue(row.getCell(10)))
+                        .classificationNumber(getCellValue(row.getCell(11)))
+                        .language(getCellValue(row.getCell(12)))
                         .rowNumber(row.getRowNum() + 1)
                         .build();
 
-                // 至少需要书名
+                // 至少需要题名（书名）
                 if (StringUtils.hasText(book.getBookName())) {
                     books.add(book);
                     rowCount++;
@@ -470,7 +502,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
             return true;
         }
 
-        for (int i = 0; i < 5; i++) {
+        // 检查前13列（新模板的所有列）
+        for (int i = 0; i < 13; i++) {
             Cell cell = row.getCell(i);
             if (cell != null && cell.getCellType() != CellType.BLANK && StringUtils.hasText(getCellValue(cell))) {
                 return false;
@@ -653,9 +686,14 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         CellStyle mediumRiskStyle = createMediumRiskStyle(workbook);  // 黄色
         CellStyle normalStyle = createNormalStyle(workbook);
 
-        // 创建表头
+        // 创建表头（包含所有新字段）
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"ISBN", "书名", "作者", "出版社", "风险等级", "命中敏感词", "命中问题书目", "白名单出版社", "备注"};
+        String[] headers = {
+                "书号", "ISBN", "题名", "副题名", "著者1", "著者2",
+                "出版地", "出版社", "出版日期", "读者对象", "内容简介",
+                "分类号", "作品语种", "风险等级", "命中敏感词",
+                "命中问题书目", "白名单出版社", "备注"
+        };
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
@@ -677,19 +715,29 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 rowStyle = normalStyle;
             }
 
-            // 填充单元格
-            createCell(row, 0, detail.getIsbn(), rowStyle);
-            createCell(row, 1, detail.getBookName(), rowStyle);
-            createCell(row, 2, detail.getAuthor(), rowStyle);
-            createCell(row, 3, detail.getPublisher(), rowStyle);
-            createCell(row, 4, getRiskLevelText(detail.getRiskLevel()), rowStyle);
-            createCell(row, 5, detail.getHitSensitive() == 1 ? "是" : "否", rowStyle);
-            createCell(row, 6, detail.getHitProblemBook() == 1 ? "是" : "否", rowStyle);
-            createCell(row, 7, detail.getIsWhitelistPublisher() == 1 ? "是" : "否", rowStyle);
+            // 填充单元格（按照新模板字段）
+            int colIndex = 0;
+            createCell(row, colIndex++, detail.getBookNumber(), rowStyle);
+            createCell(row, colIndex++, detail.getIsbn(), rowStyle);
+            createCell(row, colIndex++, detail.getBookName(), rowStyle);
+            createCell(row, colIndex++, detail.getSubtitle(), rowStyle);
+            createCell(row, colIndex++, detail.getAuthor1(), rowStyle);
+            createCell(row, colIndex++, detail.getAuthor2(), rowStyle);
+            createCell(row, colIndex++, detail.getPublishLocation(), rowStyle);
+            createCell(row, colIndex++, detail.getPublisher(), rowStyle);
+            createCell(row, colIndex++, detail.getPublishDate(), rowStyle);
+            createCell(row, colIndex++, detail.getTargetAudience(), rowStyle);
+            createCell(row, colIndex++, detail.getContentSummary(), rowStyle);
+            createCell(row, colIndex++, detail.getClassificationNumber(), rowStyle);
+            createCell(row, colIndex++, detail.getLanguage(), rowStyle);
+            createCell(row, colIndex++, getRiskLevelText(detail.getRiskLevel()), rowStyle);
+            createCell(row, colIndex++, detail.getHitSensitive() == 1 ? "是" : "否", rowStyle);
+            createCell(row, colIndex++, detail.getHitProblemBook() == 1 ? "是" : "否", rowStyle);
+            createCell(row, colIndex++, detail.getIsWhitelistPublisher() == 1 ? "是" : "否", rowStyle);
 
             // 生成备注
             String remark = generateRemark(detail);
-            createCell(row, 8, remark, rowStyle);
+            createCell(row, colIndex++, remark, rowStyle);
         }
 
         // 自动调整列宽
@@ -829,6 +877,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
     /**
      * 创建检测模板
+     *
+     * 新模板列结构：书号、题名、副题名、著者1、著者2、ISBN、出版地、出版社、出版日期、读者对象、内容简介、分类号、作品语种
      */
     private void createTemplate(OutputStream out) throws IOException {
         Workbook workbook = new XSSFWorkbook();
@@ -839,7 +889,10 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         // 创建表头
         Row headerRow = sheet.createRow(0);
-        String[] headers = {"ISBN", "书名（必填）", "作者", "出版社", "出版年份"};
+        String[] headers = {
+                "书号", "题名（必填）", "副题名", "著者1", "著者2", "ISBN",
+                "出版地", "出版社", "出版日期", "读者对象", "内容简介", "分类号", "作品语种"
+        };
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
@@ -848,23 +901,39 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         // 添加示例数据
         Row row1 = sheet.createRow(1);
-        row1.createCell(0).setCellValue("9787111681526");
-        row1.createCell(1).setCellValue("深入理解计算机系统（原书第3版）");
-        row1.createCell(2).setCellValue("[美] Randal E. Bryant");
-        row1.createCell(3).setCellValue("机械工业出版社");
-        row1.createCell(4).setCellValue("2021");
+        row1.createCell(0).setCellValue("BK001");
+        row1.createCell(1).setCellValue("深入理解计算机系统");
+        row1.createCell(2).setCellValue("原书第3版");
+        row1.createCell(3).setCellValue("[美] Randal E. Bryant");
+        row1.createCell(4).setCellValue("[美] David R. O'Hallaron");
+        row1.createCell(5).setCellValue("9787111681526");
+        row1.createCell(6).setCellValue("北京");
+        row1.createCell(7).setCellValue("机械工业出版社");
+        row1.createCell(8).setCellValue("2021");
+        row1.createCell(9).setCellValue("计算机专业学生");
+        row1.createCell(10).setCellValue("经典的计算机系统教材");
+        row1.createCell(11).setCellValue("TP3");
+        row1.createCell(12).setCellValue("英文");
 
         Row row2 = sheet.createRow(2);
-        row2.createCell(0).setCellValue("9787115545312");
-        row2.createCell(1).setCellValue("Python编程：从入门到实践（第2版）");
-        row2.createCell(2).setCellValue("[美] Eric Matthes");
-        row2.createCell(3).setCellValue("人民邮电出版社");
-        row2.createCell(4).setCellValue("2020");
+        row2.createCell(0).setCellValue("BK002");
+        row2.createCell(1).setCellValue("Python编程：从入门到实践");
+        row2.createCell(2).setCellValue("第2版");
+        row2.createCell(3).setCellValue("[美] Eric Matthes");
+        row2.createCell(4).setCellValue("");
+        row2.createCell(5).setCellValue("9787115545312");
+        row2.createCell(6).setCellValue("北京");
+        row2.createCell(7).setCellValue("人民邮电出版社");
+        row2.createCell(8).setCellValue("2020");
+        row2.createCell(9).setCellValue("编程初学者");
+        row2.createCell(10).setCellValue("适合零基础学习Python");
+        row2.createCell(11).setCellValue("TP311.56");
+        row2.createCell(12).setCellValue("英文");
 
         // 自动调整列宽
         for (int i = 0; i < headers.length; i++) {
             sheet.autoSizeColumn(i);
-            sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 2000);
+            sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 1500);
         }
 
         // 写入输出流
