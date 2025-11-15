@@ -3,7 +3,7 @@ spring:
     name: library-management-backend
 
   profiles:
-    active: dev
+    active: mysql
 
   # 数据源配置 说明：配置数据库连接信息，告诉 Spring Boot 如何连接 PostgreSQL 数据库。
   datasource:

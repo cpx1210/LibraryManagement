@@ -103,12 +103,21 @@
 			<version>4.4.0</version>
 		</dependency>
 
-		<!-- Database -->
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
+	<!-- Database -->
+	<!-- PostgreSQL 驱动（已注释，迁移到MySQL）
+	<dependency>
+		<groupId>org.postgresql</groupId>
+		<artifactId>postgresql</artifactId>
+		<scope>runtime</scope>
+	</dependency>
+	-->
+	
+	<!-- MySQL 驱动 -->
+	<dependency>
+		<groupId>com.mysql</groupId>
+		<artifactId>mysql-connector-j</artifactId>
+		<scope>runtime</scope>
+	</dependency>
 
 		<!-- Development Tools -->
 		<dependency>

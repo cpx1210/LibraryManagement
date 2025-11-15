@@ -27,7 +27,7 @@
         FROM booklist_check_task
         <where>
             <if test="taskName != null and taskName != ''">
-                AND task_name ILIKE CONCAT('%', #{taskName}, '%')
+                AND task_name LIKE CONCAT('%', #{taskName}, '%')
             </if>
             <if test="status != null and status != ''">
                 AND status = #{status}
@@ -44,7 +44,7 @@
         SELECT COUNT(*)
         FROM booklist_check_task
         WHERE submitted_by = #{userId}
-          AND DATE(submit_time) = CURRENT_DATE
+          AND DATE(submit_time) = CURDATE()
     </select>
 
 </mapper>

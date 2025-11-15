@@ -10,7 +10,7 @@ import request from '@/utils/request'
  * @param {number} params.pageNum - 当前页码（从1开始）
  * @param {number} params.pageSize - 每页数量
  * @param {string} params.keyword - 敏感词内容（可选）
- * @param {string} params.category - 敏感词类别（可选）
+ * @param {number} params.categoryId - 敏感词分类ID（可选）
  * @param {string} params.createdBy - 创建人（可选）
  * @returns {Promise} 敏感词列表
  *
@@ -51,7 +51,7 @@ export function getSensitiveWordById(wordId) {
  * 创建新敏感词
  * @param {Object} data - 敏感词信息
  * @param {string} data.keyword - 敏感词内容（必填，1-100字符）
- * @param {string} data.category - 敏感词类别（必填，最多50字符）
+ * @param {number} data.categoryId - 敏感词分类ID（必填）
  * @returns {Promise} 创建结果
  */
 export function createSensitiveWord(data) {
@@ -67,7 +67,7 @@ export function createSensitiveWord(data) {
  * @param {Object} data - 敏感词信息
  * @param {number} data.wordId - 敏感词ID（必填）
  * @param {string} data.keyword - 敏感词内容（可选，1-100字符）
- * @param {string} data.category - 敏感词类别（可选，最多50字符）
+ * @param {number} data.categoryId - 敏感词分类ID（可选）
  * @returns {Promise} 修改结果
  */
 export function updateSensitiveWord(data) {

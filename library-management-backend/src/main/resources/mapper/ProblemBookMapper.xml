@@ -22,14 +22,19 @@
             -- ISBN 精确匹配（优先级最高）
             isbn = #{isbn}
             OR
-            -- 书名相似度匹配（使用 PostgreSQL 的 similarity 函数）
-            -- 相似度阈值设置为 0.6（60% 相似度）
-            (#{bookName} IS NOT NULL AND similarity(book_name, #{bookName}) > 0.6)
+            -- 书名模糊匹配
+            (#{bookName} IS NOT NULL AND book_name LIKE CONCAT('%', #{bookName}, '%'))
         ORDER BY
             -- 优先返回 ISBN 匹配的结果
-            CASE WHEN isbn = #{isbn} THEN 1 ELSE 2 END,
-            -- 然后按书名相似度排序
-            similarity(book_name, #{bookName}) DESC
+            CASE WHEN isbn = #{isbn} THEN 0 ELSE 1 END,
+            -- 然后按书名匹配度排序
+            CASE 
+                WHEN book_name = #{bookName} THEN 0
+                WHEN book_name LIKE CONCAT(#{bookName}, '%') THEN 1
+                WHEN book_name LIKE CONCAT('%', #{bookName}, '%') THEN 2
+                ELSE 3
+            END,
+            LENGTH(book_name)
         LIMIT 1
     </select>
 

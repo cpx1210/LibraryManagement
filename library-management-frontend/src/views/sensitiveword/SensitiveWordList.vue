@@ -17,12 +17,19 @@
           />
         </el-form-item>
         <el-form-item label="敏感词类别">
-          <el-input
-            v-model="queryForm.category"
-            placeholder="请输入敏感词类别"
+          <el-select
+            v-model="queryForm.categoryId"
+            placeholder="请选择敏感词类别"
             clearable
             style="width: 200px"
-          />
+          >
+            <el-option
+              v-for="category in categoryList"
+              :key="category.categoryId"
+              :label="category.categoryName"
+              :value="category.categoryId"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="创建人">
           <el-input
@@ -70,11 +77,19 @@
       >
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column prop="keyword" label="敏感词内容" min-width="200" />
-        <el-table-column prop="category" label="敏感词类别" width="150" />
+        <el-table-column prop="categoryName" label="敏感词类别" width="150" />
         <el-table-column prop="createdBy" label="创建人" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column prop="createTime" label="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createTime) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="updatedBy" label="更新人" width="120" />
-        <el-table-column prop="updateTime" label="更新时间" width="180" />
+        <el-table-column prop="updateTime" label="更新时间" width="180">
+          <template #default="{ row }">
+            {{ formatDateTime(row.updateTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <el-button
@@ -216,7 +231,8 @@ import {
   deleteSensitiveWord,
   importSensitiveWords,
   exportSensitiveWords,
-  downloadTemplate
+  downloadTemplate,
+  getSensitiveWordCategories
 } from '@/api/sensitiveWord'
 import SensitiveWordForm from './SensitiveWordForm.vue'
 
@@ -225,7 +241,7 @@ const queryForm = reactive({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
-  category: '',
+  categoryId: null,
   createdBy: ''
 })
 
@@ -248,6 +264,9 @@ const uploadFile = ref(null)
 // 导入结果对话框
 const importResultDialogVisible = ref(false)
 const importResult = ref({})
+
+// 敏感词类别列表
+const categoryList = ref([])
 
 /**
  * 加载敏感词列表
@@ -283,7 +302,7 @@ const handleReset = () => {
   queryForm.pageNum = 1
   queryForm.pageSize = 10
   queryForm.keyword = ''
-  queryForm.category = ''
+  queryForm.categoryId = null
   queryForm.createdBy = ''
   loadSensitiveWordList()
 }
@@ -381,7 +400,8 @@ const confirmImport = async () => {
       importDialogVisible.value = false
       importResultDialogVisible.value = true
 
-      // 刷新列表
+      // 重置到第1页并刷新列表（解决批量导入后的分页问题）
+      queryForm.pageNum = 1
       loadSensitiveWordList()
 
       // 清空上传组件
@@ -454,6 +474,10 @@ const handleDownloadTemplate = async () => {
  */
 const handleSuccess = () => {
   dialogVisible.value = false
+  // 新增成功后重置到第1页（解决新增后的分页问题）
+  if (!isEdit.value) {
+    queryForm.pageNum = 1
+  }
   loadSensitiveWordList()
 }
 
@@ -461,6 +485,7 @@ const handleSuccess = () => {
  * 每页数量变化
  */
 const handleSizeChange = () => {
+  queryForm.pageNum = 1  // 重置到第1页
   loadSensitiveWordList()
 }
 
@@ -471,8 +496,39 @@ const handleCurrentChange = () => {
   loadSensitiveWordList()
 }
 
+/**
+ * 格式化日期时间为 YY-MM-DD HH:mm:ss
+ */
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '-'
+  const date = new Date(dateTime)
+  const year = String(date.getFullYear()).slice(-2) // 取后两位年份
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+/**
+ * 加载敏感词分类列表
+ */
+const loadCategories = async () => {
+  try {
+    const response = await getSensitiveWordCategories()
+    if (response.code === 200) {
+      categoryList.value = response.data
+    }
+  } catch (error) {
+    console.error('加载分类列表失败:', error)
+    ElMessage.error('加载分类列表失败')
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
+  loadCategories()
   loadSensitiveWordList()
 })
 </script>

@@ -16,13 +16,13 @@
             updated_by,
             update_time
         FROM sensitive_words
-        WHERE is_active = TRUE
+        WHERE is_active = 1
           AND (
               -- 精确匹配（match_type = 0）
               (match_type = 0 AND #{text} = keyword)
               OR
               -- 模糊匹配（match_type = 1）
-              (match_type = 1 AND #{text} ILIKE CONCAT('%', keyword, '%'))
+              (match_type = 1 AND #{text} LIKE CONCAT('%', keyword, '%'))
           )
         ORDER BY risk_level DESC, LENGTH(keyword) DESC
     </select>
