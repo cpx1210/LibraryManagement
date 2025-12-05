@@ -546,8 +546,16 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
+.list-card {
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
 .list-card :deep(.el-card__body) {
   padding: 0 20px 20px;
+  flex: 1;
+  overflow: auto;
 }
 
 .hit-text {
