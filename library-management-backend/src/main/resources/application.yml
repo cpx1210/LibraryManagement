@@ -6,15 +6,15 @@ spring:
     active: mysql
 
   # 数据源配置 说明：配置数据库连接信息，告诉 Spring Boot 如何连接 PostgreSQL 数据库。
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: postgres
-    password: 5832
+  #datasource:
+  #  driver-class-name: org.postgresql.Driver
+  #  url: jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+  #  username: postgres
+  #  password: 5832
 
   # JPA 配置
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.MySQL8Dialect
     show-sql: true
     hibernate:
       ddl-auto: none

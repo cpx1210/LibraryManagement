@@ -18,26 +18,15 @@
         </el-form-item>
         <el-form-item label="敏感词类别">
           <el-select
-            v-model="queryForm.categoryId"
+            v-model="queryForm.detectionType"
             placeholder="请选择敏感词类别"
             clearable
-            style="width: 200px"
+            style="width: 150px"
           >
-            <el-option
-              v-for="category in categoryList"
-              :key="category.categoryId"
-              :label="category.categoryName"
-              :value="category.categoryId"
-            />
+            <el-option label="关键词" value="关键词" />
+            <el-option label="作者" value="作者" />
+            <el-option label="书名" value="书名" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="创建人">
-          <el-input
-            v-model="queryForm.createdBy"
-            placeholder="请输入创建人"
-            clearable
-            style="width: 200px"
-          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery" :icon="Search">
@@ -76,21 +65,32 @@
         style="width: 100%"
       >
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column prop="keyword" label="敏感词内容" min-width="200" />
-        <el-table-column prop="categoryName" label="敏感词类别" width="150" />
-        <el-table-column prop="createdBy" label="创建人" width="120" />
-        <el-table-column prop="createTime" label="创建时间" width="180">
+        <el-table-column prop="keyword" label="敏感词内容" min-width="180" />
+        <el-table-column prop="detectionType" label="敏感词类别" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getDetectionTypeTagType(row.detectionType)">
+              {{ row.detectionType || '关键词' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="alertMessage" label="警报信息" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.alertMessage || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="riskLevel" label="风险等级" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getRiskLevelType(row.riskLevel)" effect="light">
+              {{ getRiskLevelText(row.riskLevel) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="160">
           <template #default="{ row }">
             {{ formatDateTime(row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="updatedBy" label="更新人" width="120" />
-        <el-table-column prop="updateTime" label="更新时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.updateTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right" align="center">
+        <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -231,8 +231,7 @@ import {
   deleteSensitiveWord,
   importSensitiveWords,
   exportSensitiveWords,
-  downloadTemplate,
-  getSensitiveWordCategories
+  downloadTemplate
 } from '@/api/sensitiveWord'
 import SensitiveWordForm from './SensitiveWordForm.vue'
 
@@ -241,8 +240,7 @@ const queryForm = reactive({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
-  categoryId: null,
-  createdBy: ''
+  detectionType: ''
 })
 
 // 表格数据
@@ -265,8 +263,41 @@ const uploadFile = ref(null)
 const importResultDialogVisible = ref(false)
 const importResult = ref({})
 
-// 敏感词类别列表
-const categoryList = ref([])
+/**
+ * 获取检测类型的 Tag 类型
+ */
+const getDetectionTypeTagType = (type) => {
+  const map = {
+    '关键词': 'primary',
+    '作者': 'success',
+    '书名': 'warning'
+  }
+  return map[type] || 'info'
+}
+
+/**
+ * 获取风险等级对应的 Tag 类型
+ */
+const getRiskLevelType = (level) => {
+  const map = {
+    1: 'success', // 低风险 - 绿色
+    2: 'warning', // 中风险 - 黄色
+    3: 'danger'   // 高风险 - 红色
+  }
+  return map[level] || 'info'
+}
+
+/**
+ * 获取风险等级显示的文本
+ */
+const getRiskLevelText = (level) => {
+  const map = {
+    1: '低风险',
+    2: '中风险',
+    3: '高风险'
+  }
+  return map[level] || '未知'
+}
 
 /**
  * 加载敏感词列表
@@ -280,7 +311,7 @@ const loadSensitiveWordList = async () => {
       total.value = response.data.total
     }
   } catch (error) {
-    console.error('加载敏感词列表失败:', error)
+    console.error('加载敏感词列表失败', error)
     ElMessage.error('加载敏感词列表失败')
   } finally {
     loading.value = false
@@ -302,8 +333,7 @@ const handleReset = () => {
   queryForm.pageNum = 1
   queryForm.pageSize = 10
   queryForm.keyword = ''
-  queryForm.categoryId = null
-  queryForm.createdBy = ''
+  queryForm.detectionType = ''
   loadSensitiveWordList()
 }
 
@@ -347,7 +377,7 @@ const handleDelete = async (row) => {
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除敏感词失败:', error)
+      console.error('删除敏感词失败', error)
     }
   }
 }
@@ -400,7 +430,7 @@ const confirmImport = async () => {
       importDialogVisible.value = false
       importResultDialogVisible.value = true
 
-      // 重置到第1页并刷新列表（解决批量导入后的分页问题）
+      // 重置到第1页并刷新列表
       queryForm.pageNum = 1
       loadSensitiveWordList()
 
@@ -408,7 +438,7 @@ const confirmImport = async () => {
       uploadRef.value?.clearFiles()
     }
   } catch (error) {
-    console.error('导入敏感词失败:', error)
+    console.error('导入敏感词失败', error)
     ElMessage.error('导入失败，请检查文件格式')
   } finally {
     importLoading.value = false
@@ -437,7 +467,7 @@ const handleExport = async () => {
 
     ElMessage.success('导出成功')
   } catch (error) {
-    console.error('导出敏感词失败:', error)
+    console.error('导出敏感词失败', error)
     ElMessage.error('导出失败')
   }
 }
@@ -474,7 +504,7 @@ const handleDownloadTemplate = async () => {
  */
 const handleSuccess = () => {
   dialogVisible.value = false
-  // 新增成功后重置到第1页（解决新增后的分页问题）
+  // 新增成功后重置到第1页
   if (!isEdit.value) {
     queryForm.pageNum = 1
   }
@@ -484,15 +514,17 @@ const handleSuccess = () => {
 /**
  * 每页数量变化
  */
-const handleSizeChange = () => {
-  queryForm.pageNum = 1  // 重置到第1页
+const handleSizeChange = (val) => {
+  queryForm.pageSize = val
+  queryForm.pageNum = 1
   loadSensitiveWordList()
 }
 
 /**
  * 当前页变化
  */
-const handleCurrentChange = () => {
+const handleCurrentChange = (val) => {
+  queryForm.pageNum = val
   loadSensitiveWordList()
 }
 
@@ -502,7 +534,7 @@ const handleCurrentChange = () => {
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
   const date = new Date(dateTime)
-  const year = String(date.getFullYear()).slice(-2) // 取后两位年份
+  const year = String(date.getFullYear()).slice(-2)
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   const hours = String(date.getHours()).padStart(2, '0')
@@ -511,24 +543,8 @@ const formatDateTime = (dateTime) => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
-/**
- * 加载敏感词分类列表
- */
-const loadCategories = async () => {
-  try {
-    const response = await getSensitiveWordCategories()
-    if (response.code === 200) {
-      categoryList.value = response.data
-    }
-  } catch (error) {
-    console.error('加载分类列表失败:', error)
-    ElMessage.error('加载分类列表失败')
-  }
-}
-
 // 页面加载时获取数据
 onMounted(() => {
-  loadCategories()
   loadSensitiveWordList()
 })
 </script>

@@ -62,9 +62,15 @@ public class DetectionResultDTO {
     private Boolean hitSensitive;
 
     /**
-     * 命中的敏感词列表
+     * 命中的敏感词列表（简单关键词列表，用于兼容）
      */
     private List<String> sensitiveWords;
+
+    /**
+     * 命中的敏感词详细信息列表
+     * 包含：字段名、关键词、原因等详细信息
+     */
+    private List<SensitiveHitDetailDTO> sensitiveHitDetails;
 
     /**
      * 敏感词最高风险等级

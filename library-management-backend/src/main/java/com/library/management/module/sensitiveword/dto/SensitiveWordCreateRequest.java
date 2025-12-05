@@ -1,7 +1,6 @@
 package com.library.management.module.sensitiveword.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -25,11 +24,28 @@ public class SensitiveWordCreateRequest {
     private String keyword;
 
     /**
-     * 敏感词分类ID（必填）
+     * 敏感词分类ID（可选）
      * 关联 sensitive_categories 表
+     * 如果不传，默认使用"通用"分类
      */
-    @NotNull(message = "敏感词分类ID不能为空")
     private Long categoryId;
+
+    /**
+     * 检测类型（必填）
+     * 关键词: 在书名、作者、内容简介等全部字段中检测
+     * 书名: 仅在书名（题名）字段中检测
+     * 作者: 仅在作者（著者）字段中检测
+     */
+    @NotBlank(message = "敏感词类别不能为空")
+    private String detectionType = "关键词";
+
+    /**
+     * 警报信息（可选）
+     * 命中该敏感词时显示的提示信息
+     * 用于提供更详细的风险说明
+     */
+    @Size(max = 200, message = "警报信息长度不能超过200个字符")
+    private String alertMessage;
 
     /**
      * 匹配类型（可选，默认为1-模糊匹配）

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 检测结果明细响应 DTO
@@ -73,9 +74,15 @@ public class CheckResultDetailDTO {
     private String riskLevelText;
 
     /**
-     * 命中的敏感词
+     * 命中的敏感词（简单格式，用于兼容）
      */
     private String sensitiveWords;
+
+    /**
+     * 命中的敏感词详细信息列表
+     * 包含：字段名、关键词、原因等详细信息
+     */
+    private List<SensitiveHitDetailDTO> sensitiveHitDetails;
 
     /**
      * 检测时间

@@ -68,6 +68,25 @@ const routes = [
           title: '出版社白名单管理'
         }
       },
+      // 馆藏图书模块
+      {
+        path: '/collection-books',
+        name: 'CollectionBookList',
+        component: () => import('@/views/collectionbook/CollectionBookList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '馆藏图书'
+        }
+      },
+      {
+        path: '/collection-books/problem',
+        name: 'CollectionProblemBookList',
+        component: () => import('@/views/collectionbook/CollectionProblemBookList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '馆藏问题图书'
+        }
+      },
       // 书单检测模块
       {
         path: '/detection/check',

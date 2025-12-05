@@ -1,15 +1,8 @@
 package com.library.management.module.detection.service.impl;
 
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.ExcelWriter;
-import com.alibaba.excel.write.metadata.WriteSheet;
-import com.alibaba.excel.write.metadata.style.WriteCellStyle;
-import com.alibaba.excel.write.metadata.style.WriteFont;
-import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.library.management.common.exception.BusinessException;
-import com.library.management.common.result.Result;
 import com.library.management.module.detection.dto.*;
 import com.library.management.module.detection.entity.BooklistCheckDetail;
 import com.library.management.module.detection.entity.BooklistCheckTask;
@@ -109,7 +102,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                         .subtitle(book.getSubtitle())
                         .author1(book.getAuthor1())
                         .author2(book.getAuthor2())
-                        .author(book.getAuthor())  // 合并的作者字段
+                        .author(book.getAuthor()) // 合并的作者字段
                         .publishLocation(book.getPublishLocation())
                         .publisher(book.getPublisher())
                         .publishDate(book.getPublishDate())
@@ -204,8 +197,17 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 detail.setIsWhitelistPublisher(Boolean.TRUE.equals(result.getIsWhitelistPublisher()) ? 1 : 0);
                 detail.setRiskLevel(result.getRiskLevel());
 
-                // 保存敏感词列表（转为JSON字符串）
-                if (result.getSensitiveWords() != null && !result.getSensitiveWords().isEmpty()) {
+                // 保存敏感词详细信息（转为JSON字符串）
+                if (result.getSensitiveHitDetails() != null && !result.getSensitiveHitDetails().isEmpty()) {
+                    // 将详细信息转为 JSON 格式存储
+                    try {
+                        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                        detail.setSensitiveWords(objectMapper.writeValueAsString(result.getSensitiveHitDetails()));
+                    } catch (Exception e) {
+                        // 如果 JSON 序列化失败，使用简单格式
+                        detail.setSensitiveWords(String.join(",", result.getSensitiveWords()));
+                    }
+                } else if (result.getSensitiveWords() != null && !result.getSensitiveWords().isEmpty()) {
                     detail.setSensitiveWords(String.join(",", result.getSensitiveWords()));
                 }
 
@@ -272,8 +274,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 page,
                 request.getTaskName(),
                 request.getStatus(),
-                request.getSubmittedBy()
-        );
+                request.getSubmittedBy());
 
         // 转换为 DTO
         IPage<BooklistCheckTaskDTO> dtoPage = taskPage.convert(this::convertToDTO);
@@ -382,7 +383,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         // 2. 删除明细（级联删除由数据库外键处理，或手动删除）
         // 如果没有外键级联，需要手动删除
-        // detailMapper.delete(new QueryWrapper<BooklistCheckDetail>().eq("task_id", taskId));
+        // detailMapper.delete(new QueryWrapper<BooklistCheckDetail>().eq("task_id",
+        // taskId));
 
         log.info("删除成功");
     }
@@ -456,8 +458,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 }
 
                 // 新模板列映射：
-                // 0:书号  1:题名  2:副题名  3:著者1  4:著者2  5:ISBN  6:出版地  7:出版社  8:出版日期
-                // 9:读者对象  10:内容简介  11:分类号  12:作品语种
+                // 0:书号 1:题名 2:副题名 3:著者1 4:著者2 5:ISBN 6:出版地 7:出版社 8:出版日期
+                // 9:读者对象 10:内容简介 11:分类号 12:作品语种
                 BookItemDTO book = BookItemDTO.builder()
                         .bookNumber(getCellValue(row.getCell(0)))
                         .bookName(getCellValue(row.getCell(1)))
@@ -610,7 +612,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
      * 转换明细为 DTO
      */
     private CheckResultDetailDTO convertDetailToDTO(BooklistCheckDetail detail) {
-        return CheckResultDetailDTO.builder()
+        CheckResultDetailDTO dto = CheckResultDetailDTO.builder()
                 .detailId(detail.getDetailId())
                 .taskId(detail.getTaskId())
                 .isbn(detail.getIsbn())
@@ -622,11 +624,87 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .isWhitelistPublisher(detail.getIsWhitelistPublisher() == 1)
                 .riskLevel(detail.getRiskLevel())
                 .riskLevelText(getRiskLevelText(detail.getRiskLevel()))
-                .sensitiveWords(detail.getSensitiveWords())
                 .detectionTime(detail.getDetectionTime())
                 .checkStatus(detail.getCheckStatus())
                 .errorMessage(detail.getErrorMessage())
                 .build();
+
+        // 解析敏感词详细信息
+        if (StringUtils.hasText(detail.getSensitiveWords())) {
+            String sensitiveWordsJson = detail.getSensitiveWords();
+            // 尝试解析为 JSON 数组（新格式）
+            if (sensitiveWordsJson.startsWith("[")) {
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    List<SensitiveHitDetailDTO> hitDetails = objectMapper.readValue(
+                            sensitiveWordsJson,
+                            objectMapper.getTypeFactory().constructCollectionType(List.class,
+                                    SensitiveHitDetailDTO.class));
+                    dto.setSensitiveHitDetails(hitDetails);
+                    // 同时生成简单格式的敏感词列表（用于兼容）
+                    String simpleWords = hitDetails.stream()
+                            .map(SensitiveHitDetailDTO::getKeyword)
+                            .distinct()
+                            .collect(Collectors.joining(","));
+                    dto.setSensitiveWords(simpleWords);
+                } catch (Exception e) {
+                    log.warn("解析敏感词详细信息失败，使用原始格式：{}", e.getMessage());
+                    dto.setSensitiveWords(sensitiveWordsJson);
+                }
+            } else {
+                // 旧格式，直接使用
+                dto.setSensitiveWords(sensitiveWordsJson);
+            }
+        }
+
+        // 生成备注信息
+        dto.setRemark(generateDetailRemark(dto));
+
+        return dto;
+    }
+
+    /**
+     * 生成明细备注信息（包含详细命中信息）
+     */
+    private String generateDetailRemark(CheckResultDetailDTO dto) {
+        StringBuilder remark = new StringBuilder();
+
+        // 敏感词详情
+        if (Boolean.TRUE.equals(dto.getHitSensitive())) {
+            remark.append("【敏感词】");
+            if (dto.getSensitiveHitDetails() != null && !dto.getSensitiveHitDetails().isEmpty()) {
+                // 使用详细信息
+                List<String> detailTexts = dto.getSensitiveHitDetails().stream()
+                        .map(SensitiveHitDetailDTO::toDisplayText)
+                        .collect(Collectors.toList());
+                remark.append(String.join("；", detailTexts));
+            } else if (StringUtils.hasText(dto.getSensitiveWords())) {
+                // 使用简单格式
+                remark.append("命中敏感词：").append(dto.getSensitiveWords());
+            }
+        }
+
+        // 问题书目
+        if (Boolean.TRUE.equals(dto.getHitProblemBook())) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【问题书目】");
+        }
+
+        // 非白名单
+        if (Boolean.FALSE.equals(dto.getIsWhitelistPublisher())) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【非白名单出版社】");
+        }
+
+        if (remark.length() == 0) {
+            remark.append("无问题");
+        }
+
+        return remark.toString();
     }
 
     /**
@@ -682,8 +760,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         // 创建样式
         CellStyle headerStyle = createHeaderStyle(workbook);
-        CellStyle highRiskStyle = createHighRiskStyle(workbook);  // 红色
-        CellStyle mediumRiskStyle = createMediumRiskStyle(workbook);  // 黄色
+        CellStyle highRiskStyle = createHighRiskStyle(workbook); // 红色
+        CellStyle mediumRiskStyle = createMediumRiskStyle(workbook); // 黄色
         CellStyle normalStyle = createNormalStyle(workbook);
 
         // 创建表头（包含所有新字段）

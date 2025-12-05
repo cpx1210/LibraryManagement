@@ -1,8 +1,10 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: postgres
-    password: 5832
+    # PostgreSQL 数据源配置（开发环境）
+    # 使用环境变量配置，避免硬编码敏感信息
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
 
   # 开发工具
   devtools:

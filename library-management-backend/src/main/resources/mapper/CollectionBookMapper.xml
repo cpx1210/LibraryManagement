@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.management.module.collectionbook.mapper.CollectionBookMapper">
+
+    <!-- 馆藏图书结果映射 -->
+    <resultMap id="BaseResultMap" type="com.library.management.module.collectionbook.entity.CollectionBook">
+        <id column="barcode" property="barcode" />
+        <result column="book_name" property="bookName" />
+        <result column="author" property="author" />
+        <result column="isbn" property="isbn" />
+        <result column="publisher" property="publisher" />
+        <result column="publish_year" property="publishYear" />
+        <result column="branch_library" property="branchLibrary" />
+        <result column="call_number" property="callNumber" />
+        <result column="price" property="price" />
+        <result column="batch" property="batch" />
+        <result column="is_stored" property="isStored" />
+        <result column="library_location" property="libraryLocation" />
+        <result column="shelf_location" property="shelfLocation" />
+        <result column="duplicate_flag" property="duplicateFlag" />
+        <result column="is_problem" property="isProblem" />
+        <result column="problem_type" property="problemType" />
+        <result column="problem_reason" property="problemReason" />
+        <result column="created_by" property="createdBy" />
+        <result column="create_time" property="createTime" />
+        <result column="updated_by" property="updatedBy" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        barcode, book_name, author, isbn, publisher, publish_year,
+        branch_library, call_number, price, batch, is_stored,
+        library_location, shelf_location, duplicate_flag,
+        is_problem, problem_type, problem_reason,
+        created_by, create_time, updated_by, update_time
+    </sql>
+
+</mapper>
+

@@ -41,6 +41,20 @@ public class SensitiveWordDTO {
     private String categoryName;
 
     /**
+     * 检测类型
+     * 关键词: 全局检测
+     * 书名: 仅检测题名字段
+     * 作者: 仅检测著者字段
+     */
+    private String detectionType;
+
+    /**
+     * 警报信息
+     * 命中敏感词时显示的提示信息
+     */
+    private String alertMessage;
+
+    /**
      * 匹配类型
      * 0: 精确匹配, 1: 模糊匹配, 2: 正则表达式匹配
      */

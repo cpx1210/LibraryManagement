@@ -33,6 +33,21 @@ public class SensitiveWordUpdateRequest {
     private Long categoryId;
 
     /**
+     * 检测类型（可选）
+     * 关键词: 在书名、作者、内容简介等全部字段中检测
+     * 书名: 仅在书名（题名）字段中检测
+     * 作者: 仅在作者（著者）字段中检测
+     */
+    private String detectionType;
+
+    /**
+     * 警报信息（可选）
+     * 命中该敏感词时显示的提示信息
+     */
+    @Size(max = 200, message = "警报信息长度不能超过200个字符")
+    private String alertMessage;
+
+    /**
      * 匹配类型（可选）
      * 0: 精确匹配
      * 1: 模糊匹配

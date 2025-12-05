@@ -28,6 +28,14 @@ public class SensitiveWordQueryRequest {
     private String keyword;
 
     /**
+     * 检测类型（精确查询）
+     * 关键词: 全局检测
+     * 书名: 仅检测题名字段
+     * 作者: 仅检测著者字段
+     */
+    private String detectionType;
+
+    /**
      * 敏感词分类ID（精确查询）
      */
     private Long categoryId;

@@ -63,10 +63,20 @@
           </el-menu-item>
         </el-sub-menu>
 
-        <el-menu-item index="/purchased-books">
-          <el-icon><Reading /></el-icon>
-          <template #title>已购图书</template>
-        </el-menu-item>
+        <el-sub-menu index="collection">
+          <template #title>
+            <el-icon><Reading /></el-icon>
+            <span>馆藏图书</span>
+          </template>
+          <el-menu-item index="/collection-books">
+            <el-icon><Notebook /></el-icon>
+            <template #title>馆藏图书</template>
+          </el-menu-item>
+          <el-menu-item index="/collection-books/problem">
+            <el-icon><DocumentDelete /></el-icon>
+            <template #title>馆藏问题图书</template>
+          </el-menu-item>
+        </el-sub-menu>
 
         <el-menu-item index="/logs">
           <el-icon><Document /></el-icon>
@@ -147,7 +157,8 @@ import {
   Fold,
   Expand,
   ArrowDown,
-  SwitchButton
+  SwitchButton,
+  Notebook
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

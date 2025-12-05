@@ -18,7 +18,7 @@ USE library_management;
 -- Password: admin123 (BCrypt encrypted)
 -- IMPORTANT: Change default password in production environment
 INSERT INTO sys_user (username, password_hash, role, department, real_name, employee_id, is_active, create_time)
-VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 'admin', '系统管理部', '系统管理员', 'ADMIN001', 1, CURRENT_TIMESTAMP);
+VALUES ('admin', '$2a$10$5.gKc63lignU4z5Bt24vkegg4YgvpJn0T1LFfpM9wz8t6QGl9qwcm', 'admin', '系统管理部', '系统管理员', 'ADMIN001', 1, CURRENT_TIMESTAMP);
 
 -- =====================================================
 -- 2. Initialize Test User Account (Optional, can be removed in production)
@@ -41,11 +41,12 @@ VALUES
 -- =====================================================
 -- 4. Initialize Sample Sensitive Words (Optional)
 -- =====================================================
--- Note: Commented out for security, add as needed
--- INSERT INTO sensitive_words (category_id, keyword, match_type, risk_level, detection_type, is_active, created_by, create_time)
--- VALUES
---     (1, '示例关键词1', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP),
---     (2, '示例关键词2', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP);
+INSERT INTO sensitive_words (category_id, keyword, match_type, risk_level, detection_type, is_active, created_by, create_time)
+VALUES
+    (1, '暴力', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP),
+    (2, '政治敏感词', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP),
+    (3, '色情内容', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP),
+    (1, '违法', 1, 2, '关键词', 1, 1, CURRENT_TIMESTAMP);
 
 -- =====================================================
 -- 5. Initialize Publisher Whitelist
@@ -72,6 +73,16 @@ VALUES
     ('人民卫生出版社', 1, 1, CURRENT_TIMESTAMP),
     ('中国建筑工业出版社', 1, 1, CURRENT_TIMESTAMP),
     ('经济科学出版社', 1, 1, CURRENT_TIMESTAMP);
+
+-- =====================================================
+-- 6. Initialize Sample Problem Books
+-- =====================================================
+INSERT INTO problem_books (isbn, book_name, author, publisher, publish_year, problem_type, source, created_by, create_time)
+VALUES
+    ('9787111111111', '示例问题图书1', '示例作者1', '示例出版社', '2020', '内容问题', '教育部通报', 1, CURRENT_TIMESTAMP),
+    ('9787222222222', '示例问题图书2', '示例作者2', '问题出版社', '2019', '版权问题', '出版社通知', 1, CURRENT_TIMESTAMP),
+    ('9787333333333', '示例问题图书3', '示例作者3', '某某出版社', '2021', '内容问题', '读者举报', 1, CURRENT_TIMESTAMP),
+    ('9787444444444', '示例问题图书4', '示例作者4', '另一出版社', '2022', '质量问题', '质检部门反馈', 1, CURRENT_TIMESTAMP);
 
 -- =====================================================
 -- Important Notes

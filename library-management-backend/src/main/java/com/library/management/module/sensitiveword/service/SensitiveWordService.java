@@ -3,7 +3,6 @@ package com.library.management.module.sensitiveword.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.library.management.module.sensitiveword.dto.SensitiveWordCreateRequest;
 import com.library.management.module.sensitiveword.dto.SensitiveWordDTO;
-import com.library.management.module.sensitiveword.dto.SensitiveWordExcelDTO;
 import com.library.management.module.sensitiveword.dto.SensitiveWordQueryRequest;
 import com.library.management.module.sensitiveword.dto.SensitiveWordUpdateRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,7 +39,7 @@ public interface SensitiveWordService {
     /**
      * 创建新敏感词
      *
-     * @param request 敏感词创建请求
+     * @param request   敏感词创建请求
      * @param createdBy 创建人用户ID
      * @return 创建的敏感词信息
      */
@@ -49,7 +48,7 @@ public interface SensitiveWordService {
     /**
      * 修改敏感词信息
      *
-     * @param request 敏感词修改请求
+     * @param request   敏感词修改请求
      * @param updatedBy 修改人用户ID
      * @return 修改后的敏感词信息
      */
@@ -65,7 +64,7 @@ public interface SensitiveWordService {
     /**
      * 批量导入敏感词
      *
-     * @param file 上传的 Excel 文件
+     * @param file      上传的 Excel 文件
      * @param createdBy 创建人用户ID
      * @return 导入结果统计
      */
@@ -75,7 +74,7 @@ public interface SensitiveWordService {
      * 批量导出敏感词
      *
      * @param response HTTP 响应对象
-     * @param request 查询条件（可选，导出符合条件的数据）
+     * @param request  查询条件（可选，导出符合条件的数据）
      */
     void exportWords(HttpServletResponse response, SensitiveWordQueryRequest request);
 

@@ -153,16 +153,28 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="sensitiveWords" label="敏感词详情" min-width="150" show-overflow-tooltip>
+        <el-table-column prop="sensitiveWords" label="敏感词详情" min-width="250">
           <template #default="{ row }">
-            <span v-if="row.sensitiveWords" class="sensitive-words">
+            <div v-if="row.sensitiveHitDetails && row.sensitiveHitDetails.length > 0" class="sensitive-details">
+              <el-tooltip
+                v-for="(detail, index) in row.sensitiveHitDetails"
+                :key="index"
+                :content="formatSensitiveDetail(detail)"
+                placement="top"
+              >
+                <el-tag type="danger" size="small" class="sensitive-tag">
+                  {{ detail.fieldName }}：{{ detail.keyword }}
+                </el-tag>
+              </el-tooltip>
+            </div>
+            <span v-else-if="row.sensitiveWords" class="sensitive-words">
               {{ row.sensitiveWords }}
             </span>
             <span v-else>-</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" min-width="300" show-overflow-tooltip />
       </el-table>
     </el-card>
   </div>
@@ -336,6 +348,18 @@ const formatDuration = (seconds) => {
 }
 
 /**
+ * 格式化敏感词详情（用于 tooltip 显示）
+ */
+const formatSensitiveDetail = (detail) => {
+  if (!detail) return ''
+  let text = `${detail.fieldName}匹配到关键词：${detail.keyword}`
+  if (detail.alertMessage) {
+    text += `（原因：${detail.alertMessage}）`
+  }
+  return text
+}
+
+/**
  * 组件挂载
  */
 onMounted(() => {
@@ -472,22 +496,33 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.sensitive-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sensitive-tag {
+  cursor: pointer;
+  margin: 2px;
+}
+
 /* 表格行背景色 */
-:deep(.high-risk-row) {
+:deep(.high-risk-row),
+:deep(.high-risk-row .el-table__cell) {
   background-color: #fef0f0 !important;
 }
 
-:deep(.medium-risk-row) {
+:deep(.medium-risk-row),
+:deep(.medium-risk-row .el-table__cell) {
   background-color: #fdf6ec !important;
 }
 
-:deep(.el-table__row:hover .high-risk-row),
-:deep(.high-risk-row:hover) {
+:deep(.high-risk-row:hover > .el-table__cell) {
   background-color: #fde2e2 !important;
 }
 
-:deep(.el-table__row:hover .medium-risk-row),
-:deep(.medium-risk-row:hover) {
+:deep(.medium-risk-row:hover > .el-table__cell) {
   background-color: #faecd8 !important;
 }
 </style>

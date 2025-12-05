@@ -67,6 +67,11 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             wrapper.like(SensitiveWords::getKeyword, request.getKeyword());
         }
 
+        // 检测类型精确查询
+        if (StringUtils.hasText(request.getDetectionType())) {
+            wrapper.eq(SensitiveWords::getDetectionType, request.getDetectionType());
+        }
+
         // 分类ID精确查询
         if (request.getCategoryId() != null) {
             wrapper.eq(SensitiveWords::getCategoryId, request.getCategoryId());
@@ -123,17 +128,23 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * 3. 创建敏感词对象并保存到数据库
      *
      * @CacheEvict 注解：
-     * - 方法执行后清除指定缓存
-     * - cacheNames：缓存名称
-     * - allEntries = true：清除该缓存下的所有条目
+     *             - 方法执行后清除指定缓存
+     *             - cacheNames：缓存名称
+     *             - allEntries = true：清除该缓存下的所有条目
      */
     @Override
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
     public SensitiveWordDTO createWord(SensitiveWordCreateRequest request, Long createdBy) {
-        // 1. 验证分类ID是否存在
-        var category = sensitiveCategoryMapper.selectById(request.getCategoryId());
-        if (category == null) {
-            throw new BusinessException("敏感词分类不存在");
+        // 1. 验证分类ID是否存在（如果提供了的话）
+        Long categoryId = request.getCategoryId();
+        if (categoryId != null) {
+            var category = sensitiveCategoryMapper.selectById(categoryId);
+            if (category == null) {
+                throw new BusinessException("敏感词分类不存在");
+            }
+        } else {
+            // 默认使用第一个分类
+            categoryId = 1L;
         }
 
         // 2. 检查敏感词是否已存在
@@ -145,7 +156,9 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         // 3. 创建敏感词对象
         SensitiveWords word = SensitiveWords.builder()
                 .keyword(request.getKeyword())
-                .categoryId(request.getCategoryId())
+                .categoryId(categoryId)
+                .detectionType(request.getDetectionType()) // 检测类型
+                .alertMessage(request.getAlertMessage()) // 警报信息
                 .matchType(request.getMatchType())
                 .riskLevel(request.getRiskLevel())
                 .isActive(request.getIsActive())
@@ -201,6 +214,12 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         }
 
         // 4. 更新其他字段（只更新非空字段）
+        if (StringUtils.hasText(request.getDetectionType())) {
+            word.setDetectionType(request.getDetectionType());
+        }
+        if (request.getAlertMessage() != null) {
+            word.setAlertMessage(request.getAlertMessage());
+        }
         if (request.getMatchType() != null) {
             word.setMatchType(request.getMatchType());
         }
@@ -315,10 +334,10 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                         .alertMessage(StringUtils.hasText(excelData.getAlertMessage())
                                 ? excelData.getAlertMessage().trim()
                                 : null)
-                        .categoryId(1L)  // 默认分类ID（可根据实际情况调整）
-                        .matchType(1)    // 默认模糊匹配
-                        .riskLevel(2)    // 默认中风险
-                        .isActive(true)  // 默认启用
+                        .categoryId(1L) // 默认分类ID（可根据实际情况调整）
+                        .matchType(1) // 默认模糊匹配
+                        .riskLevel(2) // 默认中风险
+                        .isActive(true) // 默认启用
                         .createdBy(createdBy)
                         .build();
 
@@ -482,11 +501,11 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * 获取所有敏感词（用于缓存）
      *
      * @Cacheable 注解：
-     * - 方法执行前先查询缓存
-     * - 如果缓存中有数据，直接返回，不执行方法
-     * - 如果缓存中没有数据，执行方法并将结果存入缓存
-     * - cacheNames：缓存名称
-     * - key：缓存的 key，这里使用固定值 "all"
+     *            - 方法执行前先查询缓存
+     *            - 如果缓存中有数据，直接返回，不执行方法
+     *            - 如果缓存中没有数据，执行方法并将结果存入缓存
+     *            - cacheNames：缓存名称
+     *            - key：缓存的 key，这里使用固定值 "all"
      */
     @Override
     @Cacheable(cacheNames = "sensitiveWords", key = "'all'")
@@ -509,21 +528,18 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * 获取所有敏感词分类
      *
      * @return 所有分类列表（包含
-    categoryId 和 categoryName）
+     *         categoryId 和 categoryName）
      */
     @Override
-    public List<Map<String, Object>>
-    getAllCategories() {
+    public List<Map<String, Object>> getAllCategories() {
         log.info("查询所有敏感词分类");
 
         // 查询所有分类
-        var categories =
-                sensitiveCategoryMapper.selectList(null);
+        var categories = sensitiveCategoryMapper.selectList(null);
 
         // 转换为 Map 列表，方便前端使用
         List<Map<String, Object>> result = categories.stream().map(category -> {
-            Map<String, Object>
-                    map = new HashMap<>();
+            Map<String, Object> map = new HashMap<>();
             map.put("categoryId",
                     category.getCategoryId());
 
@@ -532,8 +548,8 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
             map.put("description",
                     category.getDescription());
             return map;
-                        })
-                        .toList();
+        })
+                .toList();
 
         log.info("查询分类完成，共 {} 条",
                 result.size());
