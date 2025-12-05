@@ -114,6 +114,16 @@ const routes = [
           requiresAuth: true,
           title: '检测结果详情'
         }
+      },
+      // 日志管理模块
+      {
+        path: '/logs',
+        name: 'OperationLogList',
+        component: () => import('@/views/log/OperationLogList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '操作日志'
+        }
       }
     ]
   },

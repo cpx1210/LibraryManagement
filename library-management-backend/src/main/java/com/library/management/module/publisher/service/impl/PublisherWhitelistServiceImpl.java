@@ -3,8 +3,11 @@ package com.library.management.module.publisher.service.impl;
 import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.hutool.json.JSONUtil;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.common.utils.ExcelUtil;
+import com.library.management.module.log.aspect.LogAspect;
 import com.library.management.module.publisher.dto.*;
 import com.library.management.module.publisher.entity.PublisherWhitelist;
 import com.library.management.module.publisher.mapper.PublisherWhitelistMapper;
@@ -84,7 +87,8 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
         Page<PublisherWhitelist> publisherPage = publisherWhitelistMapper.selectPage(page, wrapper);
 
         // 转换为 DTO
-        Page<PublisherWhitelistDTO> dtoPage = new Page<>(publisherPage.getCurrent(), publisherPage.getSize(), publisherPage.getTotal());
+        Page<PublisherWhitelistDTO> dtoPage = new Page<>(publisherPage.getCurrent(), publisherPage.getSize(),
+                publisherPage.getTotal());
         dtoPage.setRecords(publisherPage.getRecords().stream()
                 .map(this::convertToDTO)
                 .toList());
@@ -112,15 +116,17 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * 2. 创建出版社白名单对象并保存到数据库
      *
      * @CacheEvict 注解：
-     * - 方法执行后清除指定缓存
-     * - cacheNames：缓存名称
-     * - allEntries = true：清除该缓存下的所有条目
+     *             - 方法执行后清除指定缓存
+     *             - cacheNames：缓存名称
+     *             - allEntries = true：清除该缓存下的所有条目
      */
     @Override
+    @Log(module = "publisher_whitelist", operationType = "create")
     @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
     public PublisherWhitelistDTO createPublisher(PublisherWhitelistCreateRequest request, Long createdBy) {
         // 1. 检查出版社名称是否已存在
-        PublisherWhitelist existingPublisher = publisherWhitelistMapper.selectByPublisherName(request.getPublisherName());
+        PublisherWhitelist existingPublisher = publisherWhitelistMapper
+                .selectByPublisherName(request.getPublisherName());
         if (existingPublisher != null) {
             throw new BusinessException("该出版社已在白名单中");
         }
@@ -139,7 +145,8 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
             throw new BusinessException("创建出版社白名单记录失败");
         }
 
-        log.info("创建出版社白名单成功，publisherId: {}, publisherName: {}", publisher.getPublisherId(), publisher.getPublisherName());
+        log.info("创建出版社白名单成功，publisherId: {}, publisherName: {}", publisher.getPublisherId(),
+                publisher.getPublisherName());
 
         // 4. 返回出版社白名单信息
         return convertToDTO(publisher);
@@ -156,6 +163,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * @CacheEvict：修改后清除缓存
      */
     @Override
+    @Log(module = "publisher_whitelist", operationType = "update")
     @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
     public PublisherWhitelistDTO updatePublisher(PublisherWhitelistUpdateRequest request) {
         // 1. 检查出版社白名单是否存在
@@ -164,9 +172,14 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
             throw new BusinessException("出版社白名单记录不存在");
         }
 
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(publisher));
+
         // 2. 如果修改了出版社名称，检查新名称是否已被其他记录占用
-        if (StringUtils.hasText(request.getPublisherName()) && !request.getPublisherName().equals(publisher.getPublisherName())) {
-            PublisherWhitelist existingPublisher = publisherWhitelistMapper.selectByPublisherName(request.getPublisherName());
+        if (StringUtils.hasText(request.getPublisherName())
+                && !request.getPublisherName().equals(publisher.getPublisherName())) {
+            PublisherWhitelist existingPublisher = publisherWhitelistMapper
+                    .selectByPublisherName(request.getPublisherName());
             if (existingPublisher != null && !existingPublisher.getPublisherId().equals(publisher.getPublisherId())) {
                 throw new BusinessException("该出版社名称已被其他记录占用");
             }
@@ -187,7 +200,8 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
             throw new BusinessException("更新出版社白名单失败");
         }
 
-        log.info("更新出版社白名单成功，publisherId: {}, publisherName: {}", publisher.getPublisherId(), publisher.getPublisherName());
+        log.info("更新出版社白名单成功，publisherId: {}, publisherName: {}", publisher.getPublisherId(),
+                publisher.getPublisherName());
 
         // 5. 返回更新后的出版社白名单信息
         return convertToDTO(publisher);
@@ -199,6 +213,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * @CacheEvict：删除后清除缓存
      */
     @Override
+    @Log(module = "publisher_whitelist", operationType = "delete")
     @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
     public void deletePublisher(Long publisherId) {
         // 1. 检查出版社白名单是否存在
@@ -206,6 +221,9 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
         if (publisher == null) {
             throw new BusinessException("出版社白名单记录不存在");
         }
+
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(publisher));
 
         // 2. 执行删除
         int rows = publisherWhitelistMapper.deleteById(publisherId);
@@ -220,10 +238,10 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * 获取所有启用的出版社白名单（用于缓存）
      *
      * @Cacheable 注解：
-     * - 方法执行前先查询缓存，如果缓存中有数据则直接返回
-     * - 如果缓存中没有数据，则执行方法并将结果放入缓存
-     * - cacheNames：缓存名称
-     * - key：缓存键名
+     *            - 方法执行前先查询缓存，如果缓存中有数据则直接返回
+     *            - 如果缓存中没有数据，则执行方法并将结果放入缓存
+     *            - cacheNames：缓存名称
+     *            - key：缓存键名
      */
     @Override
     @Cacheable(cacheNames = "publisherWhitelist", key = "'all_active'")
@@ -251,6 +269,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * 5. 返回导入结果统计
      */
     @Override
+    @Log(module = "publisher_whitelist", operationType = "import")
     @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
     public Map<String, Object> importPublishers(MultipartFile file, Long createdBy) {
         List<PublisherWhitelistExcelDTO> excelDataList;
@@ -287,7 +306,8 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
                 }
 
                 // 2. 检查出版社名称是否已存在
-                PublisherWhitelist existingPublisher = publisherWhitelistMapper.selectByPublisherName(excelDTO.getPublisherName().trim());
+                PublisherWhitelist existingPublisher = publisherWhitelistMapper
+                        .selectByPublisherName(excelDTO.getPublisherName().trim());
                 if (existingPublisher != null) {
                     errorMessages.add("第" + rowNum + "行：出版社「" + excelDTO.getPublisherName() + "」已存在");
                     failCount.incrementAndGet();
@@ -381,11 +401,13 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
                 .toList();
 
         // 3. 设置响应头
-        String fileName = "出版社白名单_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+        String fileName = "出版社白名单_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                + ".xlsx";
         try {
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("utf-8");
-            response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+            response.setHeader("Content-disposition",
+                    "attachment;filename=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
 
             // 4. 写入 Excel
             EasyExcel.write(response.getOutputStream(), PublisherWhitelistExcelDTO.class)
@@ -425,7 +447,8 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
         try {
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("utf-8");
-            response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
+            response.setHeader("Content-disposition",
+                    "attachment;filename=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
 
             // 3. 写入 Excel
             EasyExcel.write(response.getOutputStream(), PublisherWhitelistExcelDTO.class)

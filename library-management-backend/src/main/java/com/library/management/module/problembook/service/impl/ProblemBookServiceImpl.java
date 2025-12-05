@@ -2,8 +2,11 @@ package com.library.management.module.problembook.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.hutool.json.JSONUtil;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.common.utils.ExcelUtil;
+import com.library.management.module.log.aspect.LogAspect;
 import com.library.management.module.problembook.dto.ProblemBookCreateRequest;
 import com.library.management.module.problembook.dto.ProblemBookDTO;
 import com.library.management.module.problembook.dto.ProblemBookExcelDTO;
@@ -126,11 +129,12 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * 2. 创建问题书目对象并保存到数据库
      *
      * @CacheEvict 注解：
-     * - 方法执行后清除指定缓存
-     * - cacheNames：缓存名称
-     * - allEntries = true：清除该缓存下的所有条目
+     *             - 方法执行后清除指定缓存
+     *             - cacheNames：缓存名称
+     *             - allEntries = true：清除该缓存下的所有条目
      */
     @Override
+    @Log(module = "problem_book", operationType = "create")
     @CacheEvict(cacheNames = "problemBooks", allEntries = true)
     public ProblemBookDTO createBook(ProblemBookCreateRequest request, Long createdBy) {
         // 1. 检查 ISBN 是否已存在（如果提供了 ISBN）
@@ -182,6 +186,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * @CacheEvict：修改后清除缓存
      */
     @Override
+    @Log(module = "problem_book", operationType = "update")
     @CacheEvict(cacheNames = "problemBooks", allEntries = true)
     public ProblemBookDTO updateBook(ProblemBookUpdateRequest request, Long updatedBy) {
         // 1. 检查问题书目是否存在
@@ -189,6 +194,9 @@ public class ProblemBookServiceImpl implements ProblemBookService {
         if (book == null) {
             throw new BusinessException("问题书目不存在");
         }
+
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(book));
 
         // 2. 如果修改了 ISBN，检查新 ISBN 是否已被其他书目占用
         if (StringUtils.hasText(request.getIsbn()) && !request.getIsbn().equals(book.getIsbn())) {
@@ -247,6 +255,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * @CacheEvict：删除后清除缓存
      */
     @Override
+    @Log(module = "problem_book", operationType = "delete")
     @CacheEvict(cacheNames = "problemBooks", allEntries = true)
     public void deleteBook(Long bookId) {
         // 1. 检查问题书目是否存在
@@ -254,6 +263,9 @@ public class ProblemBookServiceImpl implements ProblemBookService {
         if (book == null) {
             throw new BusinessException("问题书目不存在");
         }
+
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(book));
 
         // 2. 删除问题书目
         int rows = problemBookMapper.deleteById(bookId);
@@ -268,9 +280,9 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * 获取所有问题书目（用于缓存）
      *
      * @Cacheable 注解：
-     * - 首次调用时查询数据库并缓存结果
-     * - 后续调用直接从缓存获取
-     * - cacheNames：缓存名称
+     *            - 首次调用时查询数据库并缓存结果
+     *            - 后续调用直接从缓存获取
+     *            - cacheNames：缓存名称
      */
     @Override
     @Cacheable(cacheNames = "problemBooks")
@@ -294,6 +306,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * @CacheEvict：导入后清除缓存
      */
     @Override
+    @Log(module = "problem_book", operationType = "import")
     @CacheEvict(cacheNames = "problemBooks", allEntries = true)
     public Map<String, Object> importBooks(MultipartFile file, Long createdBy) {
         // 1. 读取 Excel 文件

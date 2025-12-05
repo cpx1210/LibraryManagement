@@ -2,8 +2,11 @@ package com.library.management.module.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.hutool.json.JSONUtil;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.common.utils.PasswordUtil;
+import com.library.management.module.log.aspect.LogAspect;
 import com.library.management.module.user.dto.UserCreateRequest;
 import com.library.management.module.user.dto.UserDTO;
 import com.library.management.module.user.dto.UserQueryRequest;
@@ -110,6 +113,7 @@ public class UserServiceImpl implements UserService {
      * 4. 创建用户对象并保存到数据库
      */
     @Override
+    @Log(module = "user", operationType = "create")
     public UserDTO createUser(UserCreateRequest request) {
         // 1. 检查用户名是否已存在
         SysUser existingUser = userMapper.selectByUsername(request.getUsername());
@@ -158,12 +162,19 @@ public class UserServiceImpl implements UserService {
      * 注意：此接口不修改密码，密码通过单独的密码重置接口修改
      */
     @Override
+    @Log(module = "user", operationType = "update")
     public UserDTO updateUser(UserUpdateRequest request) {
         // 1. 检查用户是否存在
         SysUser user = userMapper.selectById(request.getUserId());
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
+
+        // 记录原始数据（用于日志，不包含密码）
+        SysUser oldUser = new SysUser();
+        BeanUtils.copyProperties(user, oldUser);
+        oldUser.setPasswordHash(null); // 不记录密码
+        LogAspect.setOldValue(JSONUtil.toJsonStr(oldUser));
 
         // 2. 如果修改了用户名，检查新用户名是否已被其他用户占用
         if (StringUtils.hasText(request.getUsername()) && !request.getUsername().equals(user.getUsername())) {
@@ -218,12 +229,19 @@ public class UserServiceImpl implements UserService {
      * 如果需要保留数据，建议使用禁用功能（设置 isActive=0）
      */
     @Override
+    @Log(module = "user", operationType = "delete")
     public void deleteUser(Long userId) {
         // 1. 检查用户是否存在
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
+
+        // 记录原始数据（用于日志，不包含密码）
+        SysUser oldUser = new SysUser();
+        BeanUtils.copyProperties(user, oldUser);
+        oldUser.setPasswordHash(null);
+        LogAspect.setOldValue(JSONUtil.toJsonStr(oldUser));
 
         // 2. 执行删除
         int rows = userMapper.deleteById(userId);

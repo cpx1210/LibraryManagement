@@ -2,8 +2,11 @@ package com.library.management.module.sensitiveword.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import cn.hutool.json.JSONUtil;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.common.utils.ExcelUtil;
+import com.library.management.module.log.aspect.LogAspect;
 import com.library.management.module.sensitiveword.dto.SensitiveWordCreateRequest;
 import com.library.management.module.sensitiveword.dto.SensitiveWordDTO;
 import com.library.management.module.sensitiveword.dto.SensitiveWordExcelDTO;
@@ -133,6 +136,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      *             - allEntries = true：清除该缓存下的所有条目
      */
     @Override
+    @Log(module = "sensitive_word", operationType = "create")
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
     public SensitiveWordDTO createWord(SensitiveWordCreateRequest request, Long createdBy) {
         // 1. 验证分类ID是否存在（如果提供了的话）
@@ -187,6 +191,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * @CacheEvict：修改后清除缓存
      */
     @Override
+    @Log(module = "sensitive_word", operationType = "update")
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
     public SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, Long updatedBy) {
         // 1. 检查敏感词是否存在
@@ -194,6 +199,9 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         if (word == null) {
             throw new BusinessException("敏感词不存在");
         }
+
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(word));
 
         // 2. 如果修改了分类ID，验证分类是否存在
         if (request.getCategoryId() != null) {
@@ -254,6 +262,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * @CacheEvict：删除后清除缓存
      */
     @Override
+    @Log(module = "sensitive_word", operationType = "delete")
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
     public void deleteWord(Long wordId) {
         // 1. 检查敏感词是否存在
@@ -261,6 +270,9 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         if (word == null) {
             throw new BusinessException("敏感词不存在");
         }
+
+        // 记录原始数据（用于日志）
+        LogAspect.setOldValue(JSONUtil.toJsonStr(word));
 
         // 2. 执行删除
         int rows = sensitiveWordMapper.deleteById(wordId);
@@ -286,6 +298,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * @CacheEvict：导入后清除缓存
      */
     @Override
+    @Log(module = "sensitive_word", operationType = "import")
     @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
     public Map<String, Object> importWords(MultipartFile file, Long createdBy) {
         // 1. 读取 Excel 文件

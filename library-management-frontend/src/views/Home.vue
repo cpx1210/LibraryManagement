@@ -9,7 +9,7 @@
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapse"
-        :unique-opened="true"
+        :unique-opened="false"
         router
         class="layout-menu"
       >

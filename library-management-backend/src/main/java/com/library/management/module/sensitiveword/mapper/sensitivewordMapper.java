@@ -64,32 +64,13 @@ public interface SensitiveWordMapper extends BaseMapper<SensitiveWords> {
      */
     @Select("SELECT * FROM sensitive_words WHERE detection_type = #{detectionType} AND is_active = true ORDER BY risk_level DESC")
     List<SensitiveWords> detectSensitiveWordsByType(@Param("detectionType") String detectionType);
+
+    /**
+     * 按检测类型统计敏感词数量
+     *
+     * @param detectionType 检测类型（关键词、书名、作者）
+     * @return 敏感词数量
+     */
+    @Select("SELECT COUNT(*) FROM sensitive_words WHERE detection_type = #{detectionType}")
+    Long countByDetectionType(@Param("detectionType") String detectionType);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
