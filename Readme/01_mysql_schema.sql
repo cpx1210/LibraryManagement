@@ -44,6 +44,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS booklist_check_detail;
 DROP TABLE IF EXISTS booklist_check_task;
 DROP TABLE IF EXISTS operation_log;
+DROP TABLE IF EXISTS collection_books;
 DROP TABLE IF EXISTS purchased_problem_books;
 DROP TABLE IF EXISTS publisher_whitelist;
 DROP TABLE IF EXISTS problem_books;
@@ -262,7 +263,73 @@ CREATE TABLE purchased_problem_books (
 
 
 -- -----------------------------------------------------
--- 表 7: operation_log (操作日志表)
+-- 表 7: collection_books (馆藏图书表)
+-- 说明: 存储图书馆馆藏图书信息，包括正常馆藏和问题图书
+-- -----------------------------------------------------
+CREATE TABLE collection_books (
+    barcode VARCHAR(50) PRIMARY KEY COMMENT '条码（主键，图书唯一标识）',
+    
+    -- 基本信息
+    book_name VARCHAR(500) NOT NULL COMMENT '题名（书名）',
+    author VARCHAR(200) COMMENT '著者（作者）',
+    isbn VARCHAR(20) COMMENT 'ISBN',
+    publisher VARCHAR(200) COMMENT '出版社',
+    publish_year VARCHAR(10) COMMENT '出版年',
+    
+    -- 馆藏信息
+    branch_library VARCHAR(100) COMMENT '分馆',
+    call_number VARCHAR(100) COMMENT '索书号',
+    price DECIMAL(10, 2) COMMENT '单价',
+    batch VARCHAR(50) COMMENT '批次',
+    
+    -- 入库状态
+    is_stored TINYINT(1) DEFAULT 1 COMMENT '是否入库：0-否，1-是',
+    
+    -- 馆藏位置（分为两个字段）
+    library_location VARCHAR(100) COMMENT '馆藏院舍',
+    shelf_location VARCHAR(100) COMMENT '书架位置',
+    
+    -- 重复标记
+    duplicate_flag TINYINT(1) DEFAULT 0 COMMENT '重复标记：0-否，1-是',
+    
+    -- 问题图书标记
+    is_problem TINYINT(1) DEFAULT 0 COMMENT '是否问题图书：0-正常馆藏，1-问题图书',
+    problem_type VARCHAR(100) COMMENT '问题类型',
+    problem_reason TEXT COMMENT '问题原因/备注',
+    
+    -- 审计字段
+    created_by BIGINT COMMENT '创建人用户ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_by BIGINT COMMENT '更新人用户ID',
+    update_time DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    
+    -- 索引
+    INDEX idx_cb_isbn (isbn),
+    INDEX idx_cb_book_name (book_name(255)),
+    INDEX idx_cb_author (author),
+    INDEX idx_cb_publisher (publisher),
+    INDEX idx_cb_branch_library (branch_library),
+    INDEX idx_cb_call_number (call_number),
+    INDEX idx_cb_is_problem (is_problem),
+    INDEX idx_cb_batch (batch),
+    INDEX idx_cb_is_stored (is_stored),
+    
+    -- 外键约束
+    CONSTRAINT fk_cb_created_by FOREIGN KEY (created_by) REFERENCES sys_user(user_id) ON UPDATE CASCADE,
+    CONSTRAINT fk_cb_updated_by FOREIGN KEY (updated_by) REFERENCES sys_user(user_id) ON UPDATE CASCADE,
+    
+    -- 检查约束
+    CONSTRAINT chk_cb_is_stored CHECK (is_stored IN (0, 1)),
+    CONSTRAINT chk_cb_duplicate_flag CHECK (duplicate_flag IN (0, 1)),
+    CONSTRAINT chk_cb_is_problem CHECK (is_problem IN (0, 1))
+) ENGINE=InnoDB 
+  DEFAULT CHARSET=utf8mb4 
+  COLLATE=utf8mb4_unicode_ci 
+  COMMENT='馆藏图书表 - 存储图书馆馆藏图书信息（包括正常馆藏和问题图书）';
+
+
+-- -----------------------------------------------------
+-- 表 8: operation_log (操作日志表)
 -- 说明: 记录系统中所有重要操作的日志，用于审计追踪
 -- -----------------------------------------------------
 CREATE TABLE operation_log (
@@ -295,7 +362,7 @@ CREATE TABLE operation_log (
 
 
 -- -----------------------------------------------------
--- 表 8: booklist_check_task (书目检测任务表)
+-- 表 9: booklist_check_task (书目检测任务表)
 -- 说明: 存储书单检测任务信息，每次上传书单检测创建一条任务记录
 -- -----------------------------------------------------
 CREATE TABLE booklist_check_task (
@@ -337,7 +404,7 @@ CREATE TABLE booklist_check_task (
 
 
 -- -----------------------------------------------------
--- 表 9: booklist_check_detail (书目检测详情表)
+-- 表 10: booklist_check_detail (书目检测详情表)
 -- 说明: 存储检测任务中每本书的详细检测结果
 -- -----------------------------------------------------
 CREATE TABLE booklist_check_detail (
@@ -414,16 +481,17 @@ ORDER BY
 -- 建表脚本执行完成
 -- =====================================================
 -- 
--- 已创建以下 9 张表:
--- 1. sys_user              - 用户信息表
--- 2. sensitive_categories  - 敏感词分类表
--- 3. sensitive_words       - 敏感词表
--- 4. problem_books         - 问题图书库表
--- 5. publisher_whitelist   - 出版社白名单表
+-- 已创建以下 10 张表:
+-- 1. sys_user                - 用户信息表
+-- 2. sensitive_categories    - 敏感词分类表
+-- 3. sensitive_words         - 敏感词表
+-- 4. problem_books           - 问题图书库表
+-- 5. publisher_whitelist     - 出版社白名单表
 -- 6. purchased_problem_books - 已采购问题图书表
--- 7. operation_log         - 操作日志表
--- 8. booklist_check_task   - 书目检测任务表
--- 9. booklist_check_detail - 书目检测详情表
+-- 7. collection_books        - 馆藏图书表
+-- 8. operation_log           - 操作日志表
+-- 9. booklist_check_task     - 书目检测任务表
+-- 10. booklist_check_detail  - 书目检测详情表
 --
 -- 下一步：执行 02_mysql_init_data.sql 填充初始数据
 -- =====================================================
