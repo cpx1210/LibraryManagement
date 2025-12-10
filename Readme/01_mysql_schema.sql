@@ -25,10 +25,10 @@ SET character_set_connection = utf8mb4;
 -- DROP DATABASE IF EXISTS library_management;
 
 -- 创建数据库（如果不存在）
+-- 注意：MySQL 8.0 的 CREATE DATABASE 不支持 COMMENT，改用注释说明
 CREATE DATABASE IF NOT EXISTS library_management 
     DEFAULT CHARACTER SET utf8mb4 
-    DEFAULT COLLATE utf8mb4_unicode_ci
-    COMMENT '图书馆问题图书管理系统数据库';
+    DEFAULT COLLATE utf8mb4_unicode_ci;
 
 -- 选择数据库
 USE library_management;
@@ -152,7 +152,7 @@ CREATE TABLE sensitive_words (
     
     -- 检查约束
     CONSTRAINT chk_match_type CHECK (match_type IN (0, 1, 2)),
-    CONSTRAINT chk_risk_level CHECK (risk_level IN (1, 2, 3)),
+    CONSTRAINT chk_sw_risk_level CHECK (risk_level IN (1, 2, 3)),
     CONSTRAINT chk_detection_type CHECK (detection_type IN ('关键词', '书名', '作者'))
 ) ENGINE=InnoDB 
   DEFAULT CHARSET=utf8mb4 
@@ -385,7 +385,7 @@ CREATE TABLE booklist_check_detail (
     CONSTRAINT chk_hit_sensitive CHECK (hit_sensitive IN (0, 1)),
     CONSTRAINT chk_hit_problem_book CHECK (hit_problem_book IN (0, 1)),
     CONSTRAINT chk_is_whitelist_publisher CHECK (is_whitelist_publisher IN (0, 1)),
-    CONSTRAINT chk_risk_level CHECK (risk_level IN ('high', 'medium', 'low')),
+    CONSTRAINT chk_detail_risk_level CHECK (risk_level IN ('high', 'medium', 'low')),
     CONSTRAINT chk_check_status CHECK (check_status IN ('pending', 'completed', 'error'))
 ) ENGINE=InnoDB 
   DEFAULT CHARSET=utf8mb4 
