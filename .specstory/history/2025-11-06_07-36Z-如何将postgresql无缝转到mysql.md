@@ -392,7 +392,7 @@ _**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_schema.sql</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_schema.sql</summary>
 
 **Chunk 1**
 Lines added: 289, lines removed: 1
@@ -428,19 +428,19 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS sys_user;
 + 
 + CREATE TABLE sys_user (
-+     user_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;用户ID（主键）&#39;,
-+     username VARCHAR(50) UNIQUE NOT NULL COMMENT &#39;用户名（唯一，用于登录）&#39;,
-+     password_hash VARCHAR(255) NOT NULL COMMENT &#39;密码哈希（BCrypt）&#39;,
-+     employee_id VARCHAR(50) UNIQUE COMMENT &#39;员工ID（唯一）&#39;,
-+     role VARCHAR(20) NOT NULL COMMENT &#39;用户角色：admin, user&#39;,
-+     department VARCHAR(100) COMMENT &#39;部门&#39;,
-+     real_name VARCHAR(50) NOT NULL COMMENT &#39;真实姓名&#39;,
-+     is_active TINYINT(1) DEFAULT 1 COMMENT &#39;账号状态：1-启用，0-禁用&#39;,
-+     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     last_login_time DATETIME COMMENT &#39;最后登录时间&#39;,
-+     CHECK (role IN (&#39;admin&#39;, &#39;user&#39;)),
++     user_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID（主键）',
++     username VARCHAR(50) UNIQUE NOT NULL COMMENT '用户名（唯一，用于登录）',
++     password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希（BCrypt）',
++     employee_id VARCHAR(50) UNIQUE COMMENT '员工ID（唯一）',
++     role VARCHAR(20) NOT NULL COMMENT '用户角色：admin, user',
++     department VARCHAR(100) COMMENT '部门',
++     real_name VARCHAR(50) NOT NULL COMMENT '真实姓名',
++     is_active TINYINT(1) DEFAULT 1 COMMENT '账号状态：1-启用，0-禁用',
++     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     last_login_time DATETIME COMMENT '最后登录时间',
++     CHECK (role IN ('admin', 'user')),
 +     CHECK (is_active IN (0, 1))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;用户信息表&#39;;
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户信息表';
 + 
 + CREATE INDEX idx_user_username ON sys_user(username);
 + CREATE INDEX idx_user_employee_id ON sys_user(employee_id);
@@ -452,16 +452,16 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS sensitive_categories;
 + 
 + CREATE TABLE sensitive_categories (
-+     category_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;分类ID（主键）&#39;,
-+     category_name VARCHAR(50) UNIQUE NOT NULL COMMENT &#39;分类名称：作者、书名、出版社、关键词&#39;,
-+     description VARCHAR(200) COMMENT &#39;分类描述&#39;,
-+     created_by BIGINT NOT NULL COMMENT &#39;创建人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     updated_by BIGINT COMMENT &#39;更新人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     update_time DATETIME COMMENT &#39;更新时间&#39;,
++     category_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID（主键）',
++     category_name VARCHAR(50) UNIQUE NOT NULL COMMENT '分类名称：作者、书名、出版社、关键词',
++     description VARCHAR(200) COMMENT '分类描述',
++     created_by BIGINT NOT NULL COMMENT '创建人用户ID（FK -&gt; sys_user.user_id）',
++     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     updated_by BIGINT COMMENT '更新人用户ID（FK -&gt; sys_user.user_id）',
++     update_time DATETIME COMMENT '更新时间',
 +     CONSTRAINT fk_sc_creator FOREIGN KEY (created_by) REFERENCES sys_user(user_id),
 +     CONSTRAINT fk_sc_updater FOREIGN KEY (updated_by) REFERENCES sys_user(user_id)
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;敏感词分类表&#39;;
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='敏感词分类表';
 + 
 + CREATE INDEX idx_sc_category_name ON sensitive_categories(category_name);
 + 
@@ -471,25 +471,25 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS sensitive_words;
 + 
 + CREATE TABLE sensitive_words (
-+     word_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;词ID（主键）&#39;,
-+     category_id BIGINT NOT NULL COMMENT &#39;分类ID（FK -&gt; sensitive_categories.category_id）&#39;,
-+     keyword VARCHAR(100) NOT NULL COMMENT &#39;敏感关键词（最大100字符）&#39;,
-+     match_type TINYINT NOT NULL DEFAULT 1 COMMENT &#39;匹配类型：0-精确，1-模糊，2-正则&#39;,
-+     risk_level TINYINT NOT NULL DEFAULT 2 COMMENT &#39;风险等级：1-低，2-中，3-高&#39;,
-+     detection_type VARCHAR(20) NOT NULL DEFAULT &#39;关键词&#39; COMMENT &#39;检测类型：关键词-全局，书名-仅书名，作者-仅作者&#39;,
-+     alert_message VARCHAR(200) COMMENT &#39;警告信息：匹配到关键词时的警告消息&#39;,
-+     is_active TINYINT(1) DEFAULT 1 COMMENT &#39;是否启用（默认启用）&#39;,
-+     created_by BIGINT NOT NULL COMMENT &#39;创建人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     updated_by BIGINT COMMENT &#39;更新人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     update_time DATETIME COMMENT &#39;更新时间&#39;,
++     word_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '词ID（主键）',
++     category_id BIGINT NOT NULL COMMENT '分类ID（FK -&gt; sensitive_categories.category_id）',
++     keyword VARCHAR(100) NOT NULL COMMENT '敏感关键词（最大100字符）',
++     match_type TINYINT NOT NULL DEFAULT 1 COMMENT '匹配类型：0-精确，1-模糊，2-正则',
++     risk_level TINYINT NOT NULL DEFAULT 2 COMMENT '风险等级：1-低，2-中，3-高',
++     detection_type VARCHAR(20) NOT NULL DEFAULT '关键词' COMMENT '检测类型：关键词-全局，书名-仅书名，作者-仅作者',
++     alert_message VARCHAR(200) COMMENT '警告信息：匹配到关键词时的警告消息',
++     is_active TINYINT(1) DEFAULT 1 COMMENT '是否启用（默认启用）',
++     created_by BIGINT NOT NULL COMMENT '创建人用户ID（FK -&gt; sys_user.user_id）',
++     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     updated_by BIGINT COMMENT '更新人用户ID（FK -&gt; sys_user.user_id）',
++     update_time DATETIME COMMENT '更新时间',
 +     CONSTRAINT fk_sw_category FOREIGN KEY (category_id) REFERENCES sensitive_categories(category_id),
 +     CONSTRAINT fk_sw_creator FOREIGN KEY (created_by) REFERENCES sys_user(user_id),
 +     CONSTRAINT fk_sw_updater FOREIGN KEY (updated_by) REFERENCES sys_user(user_id),
 +     CHECK (match_type IN (0, 1, 2)),
 +     CHECK (risk_level IN (1, 2, 3)),
-+     CHECK (detection_type IN (&#39;关键词&#39;, &#39;书名&#39;, &#39;作者&#39;))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;敏感词表&#39;;
++     CHECK (detection_type IN ('关键词', '书名', '作者'))
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='敏感词表';
 + 
 + -- 为关键词字段创建全文索引（支持中文搜索）
 + CREATE FULLTEXT INDEX idx_sw_keyword_fulltext ON sensitive_words(keyword) WITH PARSER ngram;
@@ -504,21 +504,21 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS problem_books;
 + 
 + CREATE TABLE problem_books (
-+     book_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;图书ID（主键）&#39;,
-+     book_name VARCHAR(500) NOT NULL COMMENT &#39;书名&#39;,
-+     author VARCHAR(200) COMMENT &#39;作者&#39;,
-+     isbn VARCHAR(20) COMMENT &#39;ISBN&#39;,
-+     publisher VARCHAR(200) COMMENT &#39;出版社&#39;,
-+     publish_year VARCHAR(4) COMMENT &#39;出版年份（格式：YYYY）&#39;,
-+     problem_type VARCHAR(100) COMMENT &#39;问题类型&#39;,
-+     source VARCHAR(255) COMMENT &#39;来源&#39;,
-+     created_by BIGINT NOT NULL COMMENT &#39;创建人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     updated_by BIGINT COMMENT &#39;更新人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     update_time DATETIME COMMENT &#39;更新时间&#39;,
++     book_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '图书ID（主键）',
++     book_name VARCHAR(500) NOT NULL COMMENT '书名',
++     author VARCHAR(200) COMMENT '作者',
++     isbn VARCHAR(20) COMMENT 'ISBN',
++     publisher VARCHAR(200) COMMENT '出版社',
++     publish_year VARCHAR(4) COMMENT '出版年份（格式：YYYY）',
++     problem_type VARCHAR(100) COMMENT '问题类型',
++     source VARCHAR(255) COMMENT '来源',
++     created_by BIGINT NOT NULL COMMENT '创建人用户ID（FK -&gt; sys_user.user_id）',
++     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     updated_by BIGINT COMMENT '更新人用户ID（FK -&gt; sys_user.user_id）',
++     update_time DATETIME COMMENT '更新时间',
 +     CONSTRAINT fk_pb_creator FOREIGN KEY (created_by) REFERENCES sys_user(user_id),
 +     CONSTRAINT fk_pb_updater FOREIGN KEY (updated_by) REFERENCES sys_user(user_id)
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;问题图书表&#39;;
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='问题图书表';
 + 
 + CREATE INDEX idx_pb_isbn ON problem_books(isbn);
 + -- 为书名创建全文索引（支持中文搜索）
@@ -533,14 +533,14 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS publisher_whitelist;
 + 
 + CREATE TABLE publisher_whitelist (
-+     publisher_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;出版社ID（主键）&#39;,
-+     publisher_name VARCHAR(200) UNIQUE NOT NULL COMMENT &#39;出版社名称（唯一）&#39;,
-+     years BIGINT COMMENT &#39;年份批次&#39;,
-+     is_active TINYINT(1) DEFAULT 1 COMMENT &#39;是否启用（默认启用）&#39;,
-+     created_by BIGINT NOT NULL COMMENT &#39;创建人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
++     publisher_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '出版社ID（主键）',
++     publisher_name VARCHAR(200) UNIQUE NOT NULL COMMENT '出版社名称（唯一）',
++     years BIGINT COMMENT '年份批次',
++     is_active TINYINT(1) DEFAULT 1 COMMENT '是否启用（默认启用）',
++     created_by BIGINT NOT NULL COMMENT '创建人用户ID（FK -&gt; sys_user.user_id）',
++     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
 +     CONSTRAINT fk_pw_creator FOREIGN KEY (created_by) REFERENCES sys_user(user_id)
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;出版社白名单表&#39;;
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='出版社白名单表';
 + 
 + CREATE INDEX idx_pw_name ON publisher_whitelist(publisher_name);
 + CREATE INDEX idx_pw_is_active ON publisher_whitelist(is_active);
@@ -551,22 +551,22 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS purchased_problem_books;
 + 
 + CREATE TABLE purchased_problem_books (
-+     asset_code BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;资产编码（主键，自增）&#39;,
-+     system_id VARCHAR(20) COMMENT &#39;系统ID：system_1-Aleph，system_2-超星&#39;,
-+     isbn VARCHAR(20) COMMENT &#39;ISBN&#39;,
-+     book_name VARCHAR(500) NOT NULL COMMENT &#39;书名&#39;,
-+     author VARCHAR(200) COMMENT &#39;作者&#39;,
-+     publisher VARCHAR(200) COMMENT &#39;出版社&#39;,
-+     purchase_date DATE COMMENT &#39;采购日期&#39;,
-+     location VARCHAR(100) COMMENT &#39;存放位置&#39;,
-+     problem_reason TEXT COMMENT &#39;问题原因&#39;,
-+     status VARCHAR(20) DEFAULT &#39;pending&#39; COMMENT &#39;状态：pending, processing, processed, reinstated&#39;,
-+     handler_id BIGINT COMMENT &#39;处理人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     handler_date DATETIME COMMENT &#39;处理日期&#39;,
++     asset_code BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '资产编码（主键，自增）',
++     system_id VARCHAR(20) COMMENT '系统ID：system_1-Aleph，system_2-超星',
++     isbn VARCHAR(20) COMMENT 'ISBN',
++     book_name VARCHAR(500) NOT NULL COMMENT '书名',
++     author VARCHAR(200) COMMENT '作者',
++     publisher VARCHAR(200) COMMENT '出版社',
++     purchase_date DATE COMMENT '采购日期',
++     location VARCHAR(100) COMMENT '存放位置',
++     problem_reason TEXT COMMENT '问题原因',
++     status VARCHAR(20) DEFAULT 'pending' COMMENT '状态：pending, processing, processed, reinstated',
++     handler_id BIGINT COMMENT '处理人用户ID（FK -&gt; sys_user.user_id）',
++     handler_date DATETIME COMMENT '处理日期',
 +     CONSTRAINT fk_ppb_handler FOREIGN KEY (handler_id) REFERENCES sys_user(user_id),
-+     CHECK (system_id IN (&#39;system_1&#39;, &#39;system_2&#39;)),
-+     CHECK (status IN (&#39;pending&#39;, &#39;processing&#39;, &#39;processed&#39;, &#39;reinstated&#39;))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;已采购问题图书表&#39;;
++     CHECK (system_id IN ('system_1', 'system_2')),
++     CHECK (status IN ('pending', 'processing', 'processed', 'reinstated'))
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='已采购问题图书表';
 + 
 + CREATE INDEX idx_ppb_isbn ON purchased_problem_books(isbn);
 + CREATE INDEX idx_ppb_status ON purchased_problem_books(status);
@@ -578,18 +578,18 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS operation_log;
 + 
 + CREATE TABLE operation_log (
-+     log_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;日志ID（主键）&#39;,
-+     module VARCHAR(50) NOT NULL COMMENT &#39;模块（例如：purchased_problem_books）&#39;,
-+     operation_type VARCHAR(20) NOT NULL COMMENT &#39;操作类型：create, update, delete&#39;,
-+     target_id BIGINT COMMENT &#39;目标记录ID&#39;,
-+     old_value TEXT COMMENT &#39;旧值（JSON格式）&#39;,
-+     new_value TEXT COMMENT &#39;新值（JSON格式）&#39;,
-+     operated_by BIGINT NOT NULL COMMENT &#39;操作人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     operation_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;操作时间&#39;,
-+     ip_address VARCHAR(45) COMMENT &#39;IP地址&#39;,
++     log_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID（主键）',
++     module VARCHAR(50) NOT NULL COMMENT '模块（例如：purchased_problem_books）',
++     operation_type VARCHAR(20) NOT NULL COMMENT '操作类型：create, update, delete',
++     target_id BIGINT COMMENT '目标记录ID',
++     old_value TEXT COMMENT '旧值（JSON格式）',
++     new_value TEXT COMMENT '新值（JSON格式）',
++     operated_by BIGINT NOT NULL COMMENT '操作人用户ID（FK -&gt; sys_user.user_id）',
++     operation_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
++     ip_address VARCHAR(45) COMMENT 'IP地址',
 +     CONSTRAINT fk_log_operator FOREIGN KEY (operated_by) REFERENCES sys_user(user_id),
-+     CHECK (operation_type IN (&#39;create&#39;, &#39;update&#39;, &#39;delete&#39;))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;操作日志表&#39;;
++     CHECK (operation_type IN ('create', 'update', 'delete'))
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
 + 
 + CREATE INDEX idx_log_module ON operation_log(module);
 + CREATE INDEX idx_log_operation_type ON operation_log(operation_type);
@@ -602,28 +602,28 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS booklist_check_task;
 + 
 + CREATE TABLE booklist_check_task (
-+     task_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;任务ID（主键）&#39;,
-+     task_name VARCHAR(255) NOT NULL COMMENT &#39;任务名称（格式：提交人_日期_序号）&#39;,
-+     task_type VARCHAR(50) COMMENT &#39;任务类型：批量检测、单本检测&#39;,
-+     submitted_by BIGINT NOT NULL COMMENT &#39;提交人用户ID（FK -&gt; sys_user.user_id）&#39;,
-+     submit_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;提交时间&#39;,
-+     start_time DATETIME COMMENT &#39;开始时间&#39;,
-+     end_time DATETIME COMMENT &#39;结束时间&#39;,
-+     original_filename VARCHAR(500) COMMENT &#39;原始文件名&#39;,
-+     file_path VARCHAR(500) COMMENT &#39;文件存储路径&#39;,
-+     result_file_path VARCHAR(500) COMMENT &#39;结果文件路径&#39;,
-+     status VARCHAR(20) DEFAULT &#39;pending&#39; COMMENT &#39;状态：pending, processing, success, failed, cancelled&#39;,
-+     error_message TEXT COMMENT &#39;错误信息&#39;,
-+     sensitive_hits INT DEFAULT 0 COMMENT &#39;敏感词命中数&#39;,
-+     problem_book_hits INT DEFAULT 0 COMMENT &#39;问题图书命中数&#39;,
-+     non_whitelist_pubs INT DEFAULT 0 COMMENT &#39;非白名单出版社数&#39;,
-+     total_books INT DEFAULT 0 COMMENT &#39;总图书数&#39;,
-+     total_problem_books INT DEFAULT 0 COMMENT &#39;总问题图书数&#39;,
-+     created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     update_time DATETIME COMMENT &#39;更新时间&#39;,
++     task_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '任务ID（主键）',
++     task_name VARCHAR(255) NOT NULL COMMENT '任务名称（格式：提交人_日期_序号）',
++     task_type VARCHAR(50) COMMENT '任务类型：批量检测、单本检测',
++     submitted_by BIGINT NOT NULL COMMENT '提交人用户ID（FK -&gt; sys_user.user_id）',
++     submit_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
++     start_time DATETIME COMMENT '开始时间',
++     end_time DATETIME COMMENT '结束时间',
++     original_filename VARCHAR(500) COMMENT '原始文件名',
++     file_path VARCHAR(500) COMMENT '文件存储路径',
++     result_file_path VARCHAR(500) COMMENT '结果文件路径',
++     status VARCHAR(20) DEFAULT 'pending' COMMENT '状态：pending, processing, success, failed, cancelled',
++     error_message TEXT COMMENT '错误信息',
++     sensitive_hits INT DEFAULT 0 COMMENT '敏感词命中数',
++     problem_book_hits INT DEFAULT 0 COMMENT '问题图书命中数',
++     non_whitelist_pubs INT DEFAULT 0 COMMENT '非白名单出版社数',
++     total_books INT DEFAULT 0 COMMENT '总图书数',
++     total_problem_books INT DEFAULT 0 COMMENT '总问题图书数',
++     created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     update_time DATETIME COMMENT '更新时间',
 +     CONSTRAINT fk_task_submitter FOREIGN KEY (submitted_by) REFERENCES sys_user(user_id),
-+     CHECK (status IN (&#39;pending&#39;, &#39;processing&#39;, &#39;success&#39;, &#39;failed&#39;, &#39;cancelled&#39;))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;书目检测任务表&#39;;
++     CHECK (status IN ('pending', 'processing', 'success', 'failed', 'cancelled'))
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='书目检测任务表';
 + 
 + CREATE INDEX idx_task_submitted_by ON booklist_check_task(submitted_by);
 + CREATE INDEX idx_task_submit_time ON booklist_check_task(submit_time);
@@ -635,39 +635,39 @@ Lines added: 289, lines removed: 1
 + DROP TABLE IF EXISTS booklist_check_detail;
 + 
 + CREATE TABLE booklist_check_detail (
-+     detail_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT &#39;详情ID（主键）&#39;,
-+     task_id BIGINT NOT NULL COMMENT &#39;任务ID（FK -&gt; booklist_check_task.task_id）&#39;,
-+     book_number VARCHAR(50) COMMENT &#39;图书编号&#39;,
-+     book_name VARCHAR(500) COMMENT &#39;书名（标题）&#39;,
-+     subtitle VARCHAR(200) COMMENT &#39;副标题&#39;,
-+     author1 VARCHAR(100) COMMENT &#39;作者1（第一作者）&#39;,
-+     author2 VARCHAR(100) COMMENT &#39;作者2（第二作者）&#39;,
-+     author VARCHAR(100) COMMENT &#39;合并作者（用于兼容）&#39;,
-+     isbn VARCHAR(20) COMMENT &#39;ISBN&#39;,
-+     publish_location VARCHAR(100) COMMENT &#39;出版地&#39;,
-+     publisher VARCHAR(100) COMMENT &#39;出版社&#39;,
-+     publish_date VARCHAR(50) COMMENT &#39;出版日期&#39;,
-+     target_audience VARCHAR(100) COMMENT &#39;目标读者&#39;,
-+     content_summary TEXT COMMENT &#39;内容摘要&#39;,
-+     classification_number VARCHAR(50) COMMENT &#39;分类号&#39;,
-+     language VARCHAR(50) COMMENT &#39;语言&#39;,
-+     hit_sensitive TINYINT DEFAULT 0 COMMENT &#39;命中敏感词：1-是，0-否&#39;,
-+     hit_problem_book TINYINT DEFAULT 0 COMMENT &#39;命中问题图书：1-是，0-否&#39;,
-+     is_whitelist_publisher TINYINT DEFAULT 1 COMMENT &#39;是否白名单出版社：1-是，0-否&#39;,
-+     risk_level VARCHAR(20) DEFAULT &#39;low&#39; COMMENT &#39;风险等级：high, medium, low&#39;,
-+     sensitive_words TEXT COMMENT &#39;敏感词详情&#39;,
-+     detection_time DATETIME COMMENT &#39;检测时间&#39;,
-+     check_status VARCHAR(20) DEFAULT &#39;pending&#39; COMMENT &#39;检查状态：pending, completed, error&#39;,
-+     error_message TEXT COMMENT &#39;错误信息&#39;,
-+     created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT &#39;创建时间&#39;,
-+     updated_time DATETIME COMMENT &#39;更新时间&#39;,
++     detail_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '详情ID（主键）',
++     task_id BIGINT NOT NULL COMMENT '任务ID（FK -&gt; booklist_check_task.task_id）',
++     book_number VARCHAR(50) COMMENT '图书编号',
++     book_name VARCHAR(500) COMMENT '书名（标题）',
++     subtitle VARCHAR(200) COMMENT '副标题',
++     author1 VARCHAR(100) COMMENT '作者1（第一作者）',
++     author2 VARCHAR(100) COMMENT '作者2（第二作者）',
++     author VARCHAR(100) COMMENT '合并作者（用于兼容）',
++     isbn VARCHAR(20) COMMENT 'ISBN',
++     publish_location VARCHAR(100) COMMENT '出版地',
++     publisher VARCHAR(100) COMMENT '出版社',
++     publish_date VARCHAR(50) COMMENT '出版日期',
++     target_audience VARCHAR(100) COMMENT '目标读者',
++     content_summary TEXT COMMENT '内容摘要',
++     classification_number VARCHAR(50) COMMENT '分类号',
++     language VARCHAR(50) COMMENT '语言',
++     hit_sensitive TINYINT DEFAULT 0 COMMENT '命中敏感词：1-是，0-否',
++     hit_problem_book TINYINT DEFAULT 0 COMMENT '命中问题图书：1-是，0-否',
++     is_whitelist_publisher TINYINT DEFAULT 1 COMMENT '是否白名单出版社：1-是，0-否',
++     risk_level VARCHAR(20) DEFAULT 'low' COMMENT '风险等级：high, medium, low',
++     sensitive_words TEXT COMMENT '敏感词详情',
++     detection_time DATETIME COMMENT '检测时间',
++     check_status VARCHAR(20) DEFAULT 'pending' COMMENT '检查状态：pending, completed, error',
++     error_message TEXT COMMENT '错误信息',
++     created_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++     updated_time DATETIME COMMENT '更新时间',
 +     CONSTRAINT fk_detail_task FOREIGN KEY (task_id) REFERENCES booklist_check_task(task_id) ON DELETE CASCADE,
 +     CHECK (hit_sensitive IN (0, 1)),
 +     CHECK (hit_problem_book IN (0, 1)),
 +     CHECK (is_whitelist_publisher IN (0, 1)),
-+     CHECK (risk_level IN (&#39;high&#39;, &#39;medium&#39;, &#39;low&#39;)),
-+     CHECK (check_status IN (&#39;pending&#39;, &#39;completed&#39;, &#39;error&#39;))
-+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=&#39;书目检测详情表 - 适配新模板（2025-10-30）&#39;;
++     CHECK (risk_level IN ('high', 'medium', 'low')),
++     CHECK (check_status IN ('pending', 'completed', 'error'))
++ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='书目检测详情表 - 适配新模板（2025-10-30）';
 + 
 + CREATE INDEX idx_detail_task_id ON booklist_check_detail(task_id);
 + CREATE INDEX idx_detail_isbn ON booklist_check_detail(isbn);
@@ -699,7 +699,7 @@ Lines added: 289, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_data_cn.sql</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_data_cn.sql</summary>
 
 **Chunk 1**
 Lines added: 88, lines removed: 1
@@ -727,25 +727,25 @@ Lines added: 88, lines removed: 1
 + -- Password: admin123 (BCrypt encrypted)
 + -- IMPORTANT: Change default password in production environment
 + INSERT INTO sys_user (username, password_hash, role, department, real_name, employee_id, is_active, create_time)
-+ VALUES (&#39;admin&#39;, &#39;$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH&#39;, &#39;admin&#39;, &#39;系统管理部&#39;, &#39;系统管理员&#39;, &#39;ADMIN001&#39;, 1, CURRENT_TIMESTAMP);
++ VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 'admin', '系统管理部', '系统管理员', 'ADMIN001', 1, CURRENT_TIMESTAMP);
 + 
 + -- =====================================================
 + -- 2. Initialize Test User Account (Optional, can be removed in production)
 + -- =====================================================
 + -- Password: user123
 + INSERT INTO sys_user (username, password_hash, role, department, real_name, employee_id, is_active, create_time)
-+ VALUES (&#39;testuser&#39;, &#39;$2a$10$rFxWQxHhQIzVqkAEv8LqxuXJ5QwQX5fZ8wqGwqHqQX5fZ8wqGwqH&#39;, &#39;user&#39;, &#39;图书管理部&#39;, &#39;测试用户&#39;, &#39;USER001&#39;, 1, CURRENT_TIMESTAMP);
++ VALUES ('testuser', '$2a$10$rFxWQxHhQIzVqkAEv8LqxuXJ5QwQX5fZ8wqGwqHqQX5fZ8wqGwqH', 'user', '图书管理部', '测试用户', 'USER001', 1, CURRENT_TIMESTAMP);
 + 
 + -- =====================================================
 + -- 3. Initialize Sensitive Word Categories
 + -- =====================================================
 + INSERT INTO sensitive_categories (category_name, description, created_by, create_time)
 + VALUES
-+     (&#39;违法违规&#39;, &#39;违反法律法规的内容&#39;, 1, CURRENT_TIMESTAMP),
-+     (&#39;政治敏感&#39;, &#39;涉及政治敏感内容&#39;, 1, CURRENT_TIMESTAMP),
-+     (&#39;暴力色情&#39;, &#39;暴力或色情相关内容&#39;, 1, CURRENT_TIMESTAMP),
-+     (&#39;作者&#39;, &#39;敏感作者名单&#39;, 1, CURRENT_TIMESTAMP),
-+     (&#39;出版社&#39;, &#39;敏感出版社名单&#39;, 1, CURRENT_TIMESTAMP);
++     ('违法违规', '违反法律法规的内容', 1, CURRENT_TIMESTAMP),
++     ('政治敏感', '涉及政治敏感内容', 1, CURRENT_TIMESTAMP),
++     ('暴力色情', '暴力或色情相关内容', 1, CURRENT_TIMESTAMP),
++     ('作者', '敏感作者名单', 1, CURRENT_TIMESTAMP),
++     ('出版社', '敏感出版社名单', 1, CURRENT_TIMESTAMP);
 + 
 + -- =====================================================
 + -- 4. Initialize Sample Sensitive Words (Optional)
@@ -753,34 +753,34 @@ Lines added: 88, lines removed: 1
 + -- Note: Commented out for security, add as needed
 + -- INSERT INTO sensitive_words (category_id, keyword, match_type, risk_level, detection_type, is_active, created_by, create_time)
 + -- VALUES
-+ --     (1, &#39;示例关键词1&#39;, 1, 3, &#39;关键词&#39;, 1, 1, CURRENT_TIMESTAMP),
-+ --     (2, &#39;示例关键词2&#39;, 1, 3, &#39;关键词&#39;, 1, 1, CURRENT_TIMESTAMP);
++ --     (1, '示例关键词1', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP),
++ --     (2, '示例关键词2', 1, 3, '关键词', 1, 1, CURRENT_TIMESTAMP);
 + 
 + -- =====================================================
 + -- 5. Initialize Publisher Whitelist
 + -- =====================================================
 + INSERT INTO publisher_whitelist (publisher_name, is_active, created_by, create_time)
 + VALUES
-+     (&#39;人民出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;高等教育出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;清华大学出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;北京大学出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;机械工业出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;电子工业出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;科学出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;中国人民大学出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;外语教学与研究出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;商务印书馆&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;中华书局&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;上海译文出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;三联书店&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;中国社会科学出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;法律出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;人民教育出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;化学工业出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;人民卫生出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;中国建筑工业出版社&#39;, 1, 1, CURRENT_TIMESTAMP),
-+     (&#39;经济科学出版社&#39;, 1, 1, CURRENT_TIMESTAMP);
++     ('人民出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('高等教育出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('清华大学出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('北京大学出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('机械工业出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('电子工业出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('科学出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('中国人民大学出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('外语教学与研究出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('商务印书馆', 1, 1, CURRENT_TIMESTAMP),
++     ('中华书局', 1, 1, CURRENT_TIMESTAMP),
++     ('上海译文出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('三联书店', 1, 1, CURRENT_TIMESTAMP),
++     ('中国社会科学出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('法律出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('人民教育出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('化学工业出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('人民卫生出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('中国建筑工业出版社', 1, 1, CURRENT_TIMESTAMP),
++     ('经济科学出版社', 1, 1, CURRENT_TIMESTAMP);
 + 
 + -- =====================================================
 + -- Important Notes
@@ -805,7 +805,7 @@ Lines added: 88, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_create_database.bat</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\mysql_create_database.bat</summary>
 
 **Chunk 1**
 Lines added: 158, lines removed: 1
@@ -868,19 +868,19 @@ Lines added: 158, lines removed: 1
 + REM =====================================================
 + REM Prompt for password if not set
 + REM =====================================================
-+ if &quot;%MYSQL_PASSWORD%&quot;==&quot;&quot; (
++ if "%MYSQL_PASSWORD%"=="" (
 +     echo [Notice] MySQL password not set in script
-+     set /p MYSQL_PASSWORD=&quot;Please enter MySQL root password (press Enter if no password): &quot;
++     set /p MYSQL_PASSWORD="Please enter MySQL root password (press Enter if no password): "
 + )
 + 
 + REM =====================================================
 + REM Test MySQL connection
 + REM =====================================================
 + echo [Step 2/4] Testing MySQL connection...
-+ if &quot;%MYSQL_PASSWORD%&quot;==&quot;&quot; (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -e &quot;SELECT 1;&quot; &gt;nul 2&gt;&amp;1
++ if "%MYSQL_PASSWORD%"=="" (
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -e "SELECT 1;" &gt;nul 2&gt;&amp;1
 + ) else (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% -e &quot;SELECT 1;&quot; &gt;nul 2&gt;&amp;1
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% -e "SELECT 1;" &gt;nul 2&gt;&amp;1
 + )
 + 
 + if %ERRORLEVEL% NEQ 0 (
@@ -901,10 +901,10 @@ Lines added: 158, lines removed: 1
 + echo [Step 3/4] Creating database and tables...
 + echo Executing: mysql_schema.sql
 + 
-+ if &quot;%MYSQL_PASSWORD%&quot;==&quot;&quot; (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% --default-character-set=utf8mb4 &lt; &quot;%SCRIPT_DIR%mysql_schema.sql&quot;
++ if "%MYSQL_PASSWORD%"=="" (
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% --default-character-set=utf8mb4 &lt; "%SCRIPT_DIR%mysql_schema.sql"
 + ) else (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% --default-character-set=utf8mb4 &lt; &quot;%SCRIPT_DIR%mysql_schema.sql&quot;
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% --default-character-set=utf8mb4 &lt; "%SCRIPT_DIR%mysql_schema.sql"
 + )
 + 
 + if %ERRORLEVEL% NEQ 0 (
@@ -922,10 +922,10 @@ Lines added: 158, lines removed: 1
 + echo [Step 4/4] Inserting initial data...
 + echo Executing: mysql_data_cn.sql
 + 
-+ if &quot;%MYSQL_PASSWORD%&quot;==&quot;&quot; (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% --default-character-set=utf8mb4 &lt; &quot;%SCRIPT_DIR%mysql_data_cn.sql&quot;
++ if "%MYSQL_PASSWORD%"=="" (
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% --default-character-set=utf8mb4 &lt; "%SCRIPT_DIR%mysql_data_cn.sql"
 + ) else (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% --default-character-set=utf8mb4 &lt; &quot;%SCRIPT_DIR%mysql_data_cn.sql&quot;
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% --default-character-set=utf8mb4 &lt; "%SCRIPT_DIR%mysql_data_cn.sql"
 + )
 + 
 + if %ERRORLEVEL% NEQ 0 (
@@ -941,10 +941,10 @@ Lines added: 158, lines removed: 1
 + REM Verify installation
 + REM =====================================================
 + echo [Verification] Checking created tables...
-+ if &quot;%MYSQL_PASSWORD%&quot;==&quot;&quot; (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -e &quot;USE library_management; SHOW TABLES;&quot;
++ if "%MYSQL_PASSWORD%"=="" (
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -e "USE library_management; SHOW TABLES;"
 + ) else (
-+     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% -e &quot;USE library_management; SHOW TABLES;&quot;
++     mysql -h%MYSQL_HOST% -P%MYSQL_PORT% -u%MYSQL_USER% -p%MYSQL_PASSWORD% -e "USE library_management; SHOW TABLES;"
 + )
 + echo.
 + 
@@ -985,7 +985,7 @@ Lines added: 158, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\application-mysql.yml</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\application-mysql.yml</summary>
 
 **Chunk 1**
 Lines added: 24, lines removed: 1
@@ -1027,7 +1027,7 @@ Lines added: 24, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_MIGRATION_GUIDE.md</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_MIGRATION_GUIDE.md</summary>
 
 **Chunk 1**
 Lines added: 500, lines removed: 1
@@ -1104,12 +1104,12 @@ Lines added: 500, lines removed: 1
 + mysql -u root -p
 + 
 + -- 创建专用数据库用户
-+ CREATE USER &#39;library_user&#39;@&#39;localhost&#39; IDENTIFIED BY &#39;secure_password&#39;;
-+ CREATE USER &#39;library_user&#39;@&#39;%&#39; IDENTIFIED BY &#39;secure_password&#39;;
++ CREATE USER 'library_user'@'localhost' IDENTIFIED BY 'secure_password';
++ CREATE USER 'library_user'@'%' IDENTIFIED BY 'secure_password';
 + 
 + -- 授予权限
-+ GRANT ALL PRIVILEGES ON library_management.* TO &#39;library_user&#39;@&#39;localhost&#39;;
-+ GRANT ALL PRIVILEGES ON library_management.* TO &#39;library_user&#39;@&#39;%&#39;;
++ GRANT ALL PRIVILEGES ON library_management.* TO 'library_user'@'localhost';
++ GRANT ALL PRIVILEGES ON library_management.* TO 'library_user'@'%';
 + 
 + FLUSH PRIVILEGES;
 + &#96;&#96;&#96;
@@ -1219,13 +1219,13 @@ Lines added: 500, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 原 PostgreSQL 语法 --&gt;
-+ &lt;if test=&quot;text != null and text != &#39;&#39;&quot;&gt;
-+     (match_type = 1 AND #{text} ILIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++ &lt;if test="text != null and text != ''"&gt;
++     (match_type = 1 AND #{text} ILIKE CONCAT('%', keyword, '%'))
 + &lt;/if&gt;
 + 
 + &lt;!-- 改为 MySQL 语法 --&gt;
-+ &lt;if test=&quot;text != null and text != &#39;&#39;&quot;&gt;
-+     (match_type = 1 AND #{text} LIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++ &lt;if test="text != null and text != ''"&gt;
++     (match_type = 1 AND #{text} LIKE CONCAT('%', keyword, '%'))
 + &lt;/if&gt;
 + &#96;&#96;&#96;
 + 
@@ -1237,13 +1237,13 @@ Lines added: 500, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 原 PostgreSQL 语法 --&gt;
-+ &lt;if test=&quot;taskName != null and taskName != &#39;&#39;&quot;&gt;
-+     AND task_name ILIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++ &lt;if test="taskName != null and taskName != ''"&gt;
++     AND task_name ILIKE CONCAT('%', #{taskName}, '%')
 + &lt;/if&gt;
 + 
 + &lt;!-- 改为 MySQL 语法 --&gt;
-+ &lt;if test=&quot;taskName != null and taskName != &#39;&#39;&quot;&gt;
-+     AND task_name LIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++ &lt;if test="taskName != null and taskName != ''"&gt;
++     AND task_name LIKE CONCAT('%', #{taskName}, '%')
 + &lt;/if&gt;
 + &#96;&#96;&#96;
 + 
@@ -1255,25 +1255,25 @@ Lines added: 500, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 原 PostgreSQL 语法（使用 similarity 函数） --&gt;
-+ &lt;if test=&quot;bookName != null and bookName != &#39;&#39;&quot;&gt;
++ &lt;if test="bookName != null and bookName != ''"&gt;
 +     (#{bookName} IS NOT NULL AND similarity(book_name, #{bookName}) &gt; 0.6)
 + &lt;/if&gt;
 + ORDER BY similarity(book_name, #{bookName}) DESC
 + 
 + &lt;!-- 改为 MySQL 语法（方案1：简单兼容） --&gt;
-+ &lt;if test=&quot;bookName != null and bookName != &#39;&#39;&quot;&gt;
-+     (#{bookName} IS NOT NULL AND book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;))
++ &lt;if test="bookName != null and bookName != ''"&gt;
++     (#{bookName} IS NOT NULL AND book_name LIKE CONCAT('%', #{bookName}, '%'))
 + &lt;/if&gt;
 + ORDER BY 
 +     CASE 
 +         WHEN book_name = #{bookName} THEN 0
-+         WHEN book_name LIKE CONCAT(#{bookName}, &#39;%&#39;) THEN 1
-+         WHEN book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;) THEN 2
++         WHEN book_name LIKE CONCAT(#{bookName}, '%') THEN 1
++         WHEN book_name LIKE CONCAT('%', #{bookName}, '%') THEN 2
 +         ELSE 3
 +     END
 + 
 + &lt;!-- 改为 MySQL 语法（方案2：全文检索，性能更好） --&gt;
-+ &lt;if test=&quot;bookName != null and bookName != &#39;&#39;&quot;&gt;
++ &lt;if test="bookName != null and bookName != ''"&gt;
 +     MATCH(book_name) AGAINST(#{bookName} IN NATURAL LANGUAGE MODE)
 + &lt;/if&gt;
 + ORDER BY 
@@ -1346,10 +1346,10 @@ Lines added: 500, lines removed: 1
 + 
 + &#96;&#96;&#96;sql
 + -- 导出用户表
-+ COPY sys_user TO &#39;/tmp/sys_user.csv&#39; WITH CSV HEADER;
++ COPY sys_user TO '/tmp/sys_user.csv' WITH CSV HEADER;
 + 
 + -- 导出敏感词表
-+ COPY sensitive_words TO &#39;/tmp/sensitive_words.csv&#39; WITH CSV HEADER;
++ COPY sensitive_words TO '/tmp/sensitive_words.csv' WITH CSV HEADER;
 + 
 + -- 其他表类似...
 + &#96;&#96;&#96;
@@ -1358,11 +1358,11 @@ Lines added: 500, lines removed: 1
 + 
 + &#96;&#96;&#96;sql
 + -- 导入用户表
-+ LOAD DATA LOCAL INFILE &#39;/tmp/sys_user.csv&#39;
++ LOAD DATA LOCAL INFILE '/tmp/sys_user.csv'
 + INTO TABLE sys_user
-+ FIELDS TERMINATED BY &#39;,&#39;
-+ ENCLOSED BY &#39;&quot;&#39;
-+ LINES TERMINATED BY &#39;\n&#39;
++ FIELDS TERMINATED BY ','
++ ENCLOSED BY '"'
++ LINES TERMINATED BY '\n'
 + IGNORE 1 ROWS;
 + 
 + -- 其他表类似...
@@ -1391,12 +1391,12 @@ Lines added: 500, lines removed: 1
 + 
 + ## 常见问题
 + 
-+ ### Q1: 启动时报错 &quot;Unknown database &#39;library_management&#39;&quot;
++ ### Q1: 启动时报错 "Unknown database 'library_management'"
 + 
 + **解决方案**：
 + &#96;&#96;&#96;bash
 + # 确保数据库已创建
-+ mysql -u root -p -e &quot;CREATE DATABASE IF NOT EXISTS library_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;&quot;
++ mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS library_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 + &#96;&#96;&#96;
 + 
 + ### Q2: 中文显示乱码
@@ -1450,7 +1450,7 @@ Lines added: 500, lines removed: 1
 +    ANALYZE TABLE sensitive_words;
 +    
 +    -- 查看索引使用情况
-+    EXPLAIN SELECT * FROM sensitive_words WHERE keyword LIKE &#39;%test%&#39;;
++    EXPLAIN SELECT * FROM sensitive_words WHERE keyword LIKE '%test%';
 +    &#96;&#96;&#96;
 + 
 + 3. **调整 MySQL 配置**：
@@ -1477,7 +1477,7 @@ Lines added: 500, lines removed: 1
 + 1. 检查 ngram 分词器配置：
 +    &#96;&#96;&#96;sql
 +    -- 查看 ngram token size（默认为 2）
-+    SHOW VARIABLES LIKE &#39;ngram_token_size&#39;;
++    SHOW VARIABLES LIKE 'ngram_token_size';
 +    &#96;&#96;&#96;
 + 
 + 2. 重建全文索引：
@@ -1489,7 +1489,7 @@ Lines added: 500, lines removed: 1
 + 3. 测试全文搜索：
 +    &#96;&#96;&#96;sql
 +    SELECT * FROM sensitive_words 
-+    WHERE MATCH(keyword) AGAINST(&#39;测试&#39; IN NATURAL LANGUAGE MODE);
++    WHERE MATCH(keyword) AGAINST('测试' IN NATURAL LANGUAGE MODE);
 +    &#96;&#96;&#96;
 + 
 + ---
@@ -1577,7 +1577,7 @@ Lines added: 500, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_CODE_CHANGES.md</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_CODE_CHANGES.md</summary>
 
 **Chunk 1**
 Lines added: 464, lines removed: 1
@@ -1701,16 +1701,16 @@ Lines added: 464, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 原代码 --&gt;
-+ (match_type = 1 AND #{text} ILIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++ (match_type = 1 AND #{text} ILIKE CONCAT('%', keyword, '%'))
 + 
 + &lt;!-- 改为 --&gt;
-+ (match_type = 1 AND #{text} LIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++ (match_type = 1 AND #{text} LIKE CONCAT('%', keyword, '%'))
 + &#96;&#96;&#96;
 + 
 + ### 完整修改后的 SQL：
 + 
 + &#96;&#96;&#96;xml
-+ &lt;select id=&quot;detectSensitiveWords&quot; resultType=&quot;com.library.management.module.sensitiveword.entity.SensitiveWords&quot;&gt;
++ &lt;select id="detectSensitiveWords" resultType="com.library.management.module.sensitiveword.entity.SensitiveWords"&gt;
 +     SELECT
 +         word_id,
 +         category_id,
@@ -1731,7 +1731,7 @@ Lines added: 464, lines removed: 1
 +           (match_type = 0 AND #{text} = keyword)
 +           OR
 +           -- 模糊匹配（match_type = 1）
-+           (match_type = 1 AND #{text} LIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++           (match_type = 1 AND #{text} LIKE CONCAT('%', keyword, '%'))
 +       )
 +     ORDER BY risk_level DESC, LENGTH(keyword) DESC
 + &lt;/select&gt;
@@ -1747,10 +1747,10 @@ Lines added: 464, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 原代码 --&gt;
-+ AND task_name ILIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++ AND task_name ILIKE CONCAT('%', #{taskName}, '%')
 + 
 + &lt;!-- 改为 --&gt;
-+ AND task_name LIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++ AND task_name LIKE CONCAT('%', #{taskName}, '%')
 + &#96;&#96;&#96;
 + 
 + **第 47 行**，修改日期函数：
@@ -1767,7 +1767,7 @@ Lines added: 464, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 分页查询检测任务列表 --&gt;
-+ &lt;select id=&quot;selectTaskPage&quot; resultType=&quot;com.library.management.module.detection.entity.BooklistCheckTask&quot;&gt;
++ &lt;select id="selectTaskPage" resultType="com.library.management.module.detection.entity.BooklistCheckTask"&gt;
 +     SELECT
 +         task_id,
 +         task_name,
@@ -1790,13 +1790,13 @@ Lines added: 464, lines removed: 1
 +         update_time
 +     FROM booklist_check_task
 +     &lt;where&gt;
-+         &lt;if test=&quot;taskName != null and taskName != &#39;&#39;&quot;&gt;
-+             AND task_name LIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++         &lt;if test="taskName != null and taskName != ''"&gt;
++             AND task_name LIKE CONCAT('%', #{taskName}, '%')
 +         &lt;/if&gt;
-+         &lt;if test=&quot;status != null and status != &#39;&#39;&quot;&gt;
++         &lt;if test="status != null and status != ''"&gt;
 +             AND status = #{status}
 +         &lt;/if&gt;
-+         &lt;if test=&quot;submittedBy != null&quot;&gt;
++         &lt;if test="submittedBy != null"&gt;
 +             AND submitted_by = #{submittedBy}
 +         &lt;/if&gt;
 +     &lt;/where&gt;
@@ -1804,7 +1804,7 @@ Lines added: 464, lines removed: 1
 + &lt;/select&gt;
 + 
 + &lt;!-- 获取用户今天提交的任务数量 --&gt;
-+ &lt;select id=&quot;countTodayTasksByUser&quot; resultType=&quot;int&quot;&gt;
++ &lt;select id="countTodayTasksByUser" resultType="int"&gt;
 +     SELECT COUNT(*)
 +     FROM booklist_check_task
 +     WHERE submitted_by = #{userId}
@@ -1825,7 +1825,7 @@ Lines added: 464, lines removed: 1
 + 使用 &#96;LIKE&#96; 和 &#96;CASE&#96; 语句实现基本的相似度匹配：
 + 
 + &#96;&#96;&#96;xml
-+ &lt;select id=&quot;detectProblemBook&quot; resultType=&quot;com.library.management.module.problembook.entity.ProblemBook&quot;&gt;
++ &lt;select id="detectProblemBook" resultType="com.library.management.module.problembook.entity.ProblemBook"&gt;
 +     SELECT
 +         book_id,
 +         book_name,
@@ -1845,15 +1845,15 @@ Lines added: 464, lines removed: 1
 +         isbn = #{isbn}
 +         OR
 +         -- 书名模糊匹配
-+         (#{bookName} IS NOT NULL AND book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;))
++         (#{bookName} IS NOT NULL AND book_name LIKE CONCAT('%', #{bookName}, '%'))
 +     ORDER BY
 +         -- 优先返回 ISBN 匹配的结果
 +         CASE WHEN isbn = #{isbn} THEN 0 ELSE 1 END,
 +         -- 然后按书名匹配度排序（完全匹配 &gt; 前缀匹配 &gt; 包含匹配）
 +         CASE 
 +             WHEN book_name = #{bookName} THEN 0
-+             WHEN book_name LIKE CONCAT(#{bookName}, &#39;%&#39;) THEN 1
-+             WHEN book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;) THEN 2
++             WHEN book_name LIKE CONCAT(#{bookName}, '%') THEN 1
++             WHEN book_name LIKE CONCAT('%', #{bookName}, '%') THEN 2
 +             ELSE 3
 +         END,
 +         -- 最后按书名长度排序（越短越相关）
@@ -1867,7 +1867,7 @@ Lines added: 464, lines removed: 1
 + 使用 MySQL 的 &#96;MATCH AGAINST&#96; 全文检索：
 + 
 + &#96;&#96;&#96;xml
-+ &lt;select id=&quot;detectProblemBook&quot; resultType=&quot;com.library.management.module.problembook.entity.ProblemBook&quot;&gt;
++ &lt;select id="detectProblemBook" resultType="com.library.management.module.problembook.entity.ProblemBook"&gt;
 +     SELECT
 +         book_id,
 +         book_name,
@@ -1948,7 +1948,7 @@ Lines added: 464, lines removed: 1
 + 
 + ## 常见错误及解决
 + 
-+ ### 错误 1: Unknown column &#39;TRUE&#39; in &#39;where clause&#39;
++ ### 错误 1: Unknown column 'TRUE' in 'where clause'
 + 
 + **原因**: MySQL 不识别 &#96;TRUE&#96;/&#96;FALSE&#96; 关键字（在某些上下文中）
 + 
@@ -1968,7 +1968,7 @@ Lines added: 464, lines removed: 1
 + 
 + **解决**: 使用本文档第 5 节中的方案 A 或方案 B
 + 
-+ ### 错误 3: You have an error in your SQL syntax near &#39;ILIKE&#39;
++ ### 错误 3: You have an error in your SQL syntax near 'ILIKE'
 + 
 + **原因**: MySQL 不支持 &#96;ILIKE&#96;
 + 
@@ -1976,10 +1976,10 @@ Lines added: 464, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 错误 --&gt;
-+ WHERE name ILIKE &#39;%test%&#39;
++ WHERE name ILIKE '%test%'
 + 
 + &lt;!-- 正确 --&gt;
-+ WHERE name LIKE &#39;%test%&#39;
++ WHERE name LIKE '%test%'
 + &#96;&#96;&#96;
 + 
 + **注意**: MySQL 的 &#96;LIKE&#96; 默认是大小写不敏感的（使用 &#96;utf8mb4_unicode_ci&#96; 排序规则时）。
@@ -2006,26 +2006,26 @@ Lines added: 464, lines removed: 1
 + 
 + &#96;&#96;&#96;powershell
 + # 备份原文件
-+ Copy-Item &quot;src\main\resources\mapper\SensitiveWordMapper.xml&quot; &quot;src\main\resources\mapper\SensitiveWordMapper.xml.bak&quot;
-+ Copy-Item &quot;src\main\resources\mapper\BooklistCheckTaskMapper.xml&quot; &quot;src\main\resources\mapper\BooklistCheckTaskMapper.xml.bak&quot;
-+ Copy-Item &quot;src\main\resources\mapper\ProblemBookMapper.xml&quot; &quot;src\main\resources\mapper\ProblemBookMapper.xml.bak&quot;
++ Copy-Item "src\main\resources\mapper\SensitiveWordMapper.xml" "src\main\resources\mapper\SensitiveWordMapper.xml.bak"
++ Copy-Item "src\main\resources\mapper\BooklistCheckTaskMapper.xml" "src\main\resources\mapper\BooklistCheckTaskMapper.xml.bak"
++ Copy-Item "src\main\resources\mapper\ProblemBookMapper.xml" "src\main\resources\mapper\ProblemBookMapper.xml.bak"
 + 
 + # 替换 ILIKE 为 LIKE
-+ Get-ChildItem &quot;src\main\resources\mapper\*.xml&quot; | ForEach-Object {
-+     (Get-Content $_.FullName) -replace &#39; ILIKE &#39;, &#39; LIKE &#39; | Set-Content $_.FullName
++ Get-ChildItem "src\main\resources\mapper\*.xml" | ForEach-Object {
++     (Get-Content $_.FullName) -replace ' ILIKE ', ' LIKE ' | Set-Content $_.FullName
 + }
 + 
 + # 替换 TRUE 为 1
-+ Get-ChildItem &quot;src\main\resources\mapper\*.xml&quot; | ForEach-Object {
-+     (Get-Content $_.FullName) -replace &#39;= TRUE&#39;, &#39;= 1&#39; | Set-Content $_.FullName
++ Get-ChildItem "src\main\resources\mapper\*.xml" | ForEach-Object {
++     (Get-Content $_.FullName) -replace '= TRUE', '= 1' | Set-Content $_.FullName
 + }
 + 
 + # 替换 CURRENT_DATE 为 CURDATE()
-+ Get-ChildItem &quot;src\main\resources\mapper\*.xml&quot; | ForEach-Object {
-+     (Get-Content $_.FullName) -replace &#39;CURRENT_DATE&#39;, &#39;CURDATE()&#39; | Set-Content $_.FullName
++ Get-ChildItem "src\main\resources\mapper\*.xml" | ForEach-Object {
++     (Get-Content $_.FullName) -replace 'CURRENT_DATE', 'CURDATE()' | Set-Content $_.FullName
 + }
 + 
-+ Write-Host &quot;修改完成！请手动检查 ProblemBookMapper.xml 中的 similarity() 函数&quot;
++ Write-Host "修改完成！请手动检查 ProblemBookMapper.xml 中的 similarity() 函数"
 + &#96;&#96;&#96;
 + 
 + ---
@@ -2063,7 +2063,7 @@ Lines added: 464, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_README.md</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\library-management-backend\src\main\resources\db\MYSQL_README.md</summary>
 
 **Chunk 1**
 Lines added: 398, lines removed: 1
@@ -2302,7 +2302,7 @@ Lines added: 398, lines removed: 1
 + 
 + &#96;&#96;&#96;sql
 + -- 查看数据库
-+ SHOW DATABASES LIKE &#39;library_management&#39;;
++ SHOW DATABASES LIKE 'library_management';
 + 
 + -- 切换到数据库
 + USE library_management;
@@ -2345,7 +2345,7 @@ Lines added: 398, lines removed: 1
 + -- 查看管理员账号
 + SELECT username, role, real_name, department 
 + FROM sys_user 
-+ WHERE username = &#39;admin&#39;;
++ WHERE username = 'admin';
 + &#96;&#96;&#96;
 + 
 + ---
@@ -2375,15 +2375,15 @@ Lines added: 398, lines removed: 1
 + 
 + -- 查看表大小
 + SELECT 
-+     table_name AS &#39;表名&#39;,
-+     ROUND(((data_length + index_length) / 1024 / 1024), 2) AS &#39;大小(MB)&#39;
++     table_name AS '表名',
++     ROUND(((data_length + index_length) / 1024 / 1024), 2) AS '大小(MB)'
 + FROM information_schema.TABLES
-+ WHERE table_schema = &#39;library_management&#39;
++ WHERE table_schema = 'library_management'
 + ORDER BY (data_length + index_length) DESC;
 + 
 + -- 查看慢查询
-+ SHOW VARIABLES LIKE &#39;slow_query_log&#39;;
-+ SHOW VARIABLES LIKE &#39;long_query_time&#39;;
++ SHOW VARIABLES LIKE 'slow_query_log';
++ SHOW VARIABLES LIKE 'long_query_time';
 + &#96;&#96;&#96;
 + 
 + ### 备份和恢复
@@ -2413,7 +2413,7 @@ Lines added: 398, lines removed: 1
 + **解决方案**:
 + &#96;&#96;&#96;sql
 + -- 检查 ngram token size
-+ SHOW VARIABLES LIKE &#39;ngram_token_size&#39;;
++ SHOW VARIABLES LIKE 'ngram_token_size';
 + 
 + -- 重建全文索引
 + ALTER TABLE sensitive_words DROP INDEX idx_sw_keyword_fulltext;
@@ -2483,7 +2483,7 @@ Lines added: 398, lines removed: 1
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -2497,7 +2497,7 @@ No results found
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: d:\LibraryManagement\MySQL迁移快速指南.md</summary>
+<details><summary>Tool use: **write** • Edit file: d:\LibraryManagement\MySQL迁移快速指南.md</summary>
 
 **Chunk 1**
 Lines added: 279, lines removed: 1
@@ -2620,7 +2620,7 @@ Lines added: 279, lines removed: 1
 + WHERE is_active = 1
 + 
 + &lt;!-- 第 25 行：ILIKE → LIKE --&gt;
-+ (match_type = 1 AND #{text} LIKE CONCAT(&#39;%&#39;, keyword, &#39;%&#39;))
++ (match_type = 1 AND #{text} LIKE CONCAT('%', keyword, '%'))
 + &#96;&#96;&#96;
 + 
 + #### 文件 2: &#96;BooklistCheckTaskMapper.xml&#96;
@@ -2629,7 +2629,7 @@ Lines added: 279, lines removed: 1
 + 
 + &#96;&#96;&#96;xml
 + &lt;!-- 第 30 行：ILIKE → LIKE --&gt;
-+ AND task_name LIKE CONCAT(&#39;%&#39;, #{taskName}, &#39;%&#39;)
++ AND task_name LIKE CONCAT('%', #{taskName}, '%')
 + 
 + &lt;!-- 第 47 行：CURRENT_DATE → CURDATE() --&gt;
 + AND DATE(submit_time) = CURDATE()
@@ -2647,15 +2647,15 @@ Lines added: 279, lines removed: 1
 +     isbn = #{isbn}
 +     OR
 +     -- 书名模糊匹配
-+     (#{bookName} IS NOT NULL AND book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;))
++     (#{bookName} IS NOT NULL AND book_name LIKE CONCAT('%', #{bookName}, '%'))
 + ORDER BY
 +     -- 优先返回 ISBN 匹配的结果
 +     CASE WHEN isbn = #{isbn} THEN 0 ELSE 1 END,
 +     -- 然后按书名匹配度排序
 +     CASE 
 +         WHEN book_name = #{bookName} THEN 0
-+         WHEN book_name LIKE CONCAT(#{bookName}, &#39;%&#39;) THEN 1
-+         WHEN book_name LIKE CONCAT(&#39;%&#39;, #{bookName}, &#39;%&#39;) THEN 2
++         WHEN book_name LIKE CONCAT(#{bookName}, '%') THEN 1
++         WHEN book_name LIKE CONCAT('%', #{bookName}, '%') THEN 2
 +         ELSE 3
 +     END,
 +     LENGTH(book_name)
@@ -2738,7 +2738,7 @@ Lines added: 279, lines removed: 1
 + net start mysql
 + 
 + # 测试连接
-+ mysql -u root -p -e &quot;SELECT 1;&quot;
++ mysql -u root -p -e "SELECT 1;"
 + &#96;&#96;&#96;
 + 
 + ### 问题 2: 中文乱码
