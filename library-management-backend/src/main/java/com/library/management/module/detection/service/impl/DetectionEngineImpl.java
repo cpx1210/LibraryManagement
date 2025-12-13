@@ -373,19 +373,57 @@ public class DetectionEngineImpl implements DetectionEngine {
 
     /**
      * 生成检测备注信息
+     * 
+     * 按照优先级顺序：
+     * 1. 首先检查白名单：非白名单 → 【非白名单出版社】（浅黄色，中风险）
+     * 2. 其次检查问题书目：命中 → 【问题书目】+ 具体信息（浅红色，高风险）
+     * 3. 最后检查敏感词：命中 → 【敏感词】+ 详细匹配信息（浅红色，高风险）
+     * 4. 无问题时留空
      *
      * @param result 检测结果（会被修改）
      */
     private void generateRemark(DetectionResultDTO result) {
         StringBuilder remark = new StringBuilder();
 
-        // 1. 敏感词信息（使用详细信息）
+        // 1. 首先检查白名单（中风险 - 浅黄色）
+        if (Boolean.FALSE.equals(result.getIsWhitelistPublisher())) {
+            remark.append("【非白名单出版社】");
+        }
+
+        // 2. 其次检查问题书目（高风险 - 浅红色）
+        if (Boolean.TRUE.equals(result.getHitProblemBook())) {
+            if (remark.length() > 0) {
+                remark.append(" ");
+            }
+            remark.append("【问题书目】");
+            if (StringUtils.hasText(result.getProblemBookInfo())) {
+                remark.append(result.getProblemBookInfo());
+            }
+        }
+
+        // 3. 最后检查敏感词（高风险 - 浅红色）
         if (Boolean.TRUE.equals(result.getHitSensitive())) {
+            if (remark.length() > 0) {
+                remark.append(" ");
+            }
             remark.append("【敏感词】");
+
             if (result.getSensitiveHitDetails() != null && !result.getSensitiveHitDetails().isEmpty()) {
                 // 使用详细信息生成备注
+                // 格式：字段名匹配到关键词：xxx（原因：xxx）
                 List<String> detailTexts = result.getSensitiveHitDetails().stream()
-                        .map(SensitiveHitDetailDTO::toDisplayText)
+                        .map(detail -> {
+                            StringBuilder sb = new StringBuilder();
+                            sb.append(detail.getFieldName());
+                            sb.append("匹配到关键词：");
+                            sb.append(detail.getKeyword());
+                            if (StringUtils.hasText(detail.getReason())) {
+                                sb.append("（原因：");
+                                sb.append(detail.getReason());
+                                sb.append("）");
+                            }
+                            return sb.toString();
+                        })
                         .collect(Collectors.toList());
                 remark.append(String.join("；", detailTexts));
             } else if (result.getSensitiveWords() != null && !result.getSensitiveWords().isEmpty()) {
@@ -395,29 +433,8 @@ public class DetectionEngineImpl implements DetectionEngine {
             }
         }
 
-        // 2. 问题书目信息
-        if (Boolean.TRUE.equals(result.getHitProblemBook())) {
-            if (remark.length() > 0) {
-                remark.append(" | ");
-            }
-            remark.append("【问题书目】");
-            if (StringUtils.hasText(result.getProblemBookInfo())) {
-                remark.append(result.getProblemBookInfo());
-            }
-        }
-
-        // 3. 白名单信息
-        if (Boolean.FALSE.equals(result.getIsWhitelistPublisher())) {
-            if (remark.length() > 0) {
-                remark.append(" | ");
-            }
-            remark.append("【非白名单出版社】");
-        }
-
-        // 4. 无问题
-        if (remark.length() == 0) {
-            remark.append("无问题");
-        }
+        // 4. 无问题时留空（不输出"无问题"）
+        // 如果 remark 为空，不设置任何内容
 
         result.setRemark(remark.toString());
     }

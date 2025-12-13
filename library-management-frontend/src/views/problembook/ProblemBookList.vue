@@ -92,7 +92,11 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="序号" width="60" align="center">
+          <template #default="{ $index }">
+            {{ (queryForm.pageNum - 1) * queryForm.pageSize + $index + 1 }}
+          </template>
+        </el-table-column>
         <el-table-column prop="bookName" label="书名" min-width="250" show-overflow-tooltip />
         <el-table-column prop="author" label="作者" width="150" show-overflow-tooltip />
         <el-table-column prop="isbn" label="ISBN" width="150" />

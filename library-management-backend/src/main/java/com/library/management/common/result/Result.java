@@ -1,5 +1,6 @@
 package com.library.management.common.result;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,8 +21,8 @@ import java.time.LocalDateTime;
  * @param <T> 泛型，表示返回的数据类型
  */
 @Data
-@NoArgsConstructor  // Lombok注解：生成无参构造函数
-@AllArgsConstructor  // Lombok注解：生成包含所有字段的构造函数
+@NoArgsConstructor // Lombok注解：生成无参构造函数
+@AllArgsConstructor // Lombok注解：生成包含所有字段的构造函数
 public class Result<T> implements Serializable {
 
     /**
@@ -33,8 +34,15 @@ public class Result<T> implements Serializable {
     private Integer code;
     private String message;
     private T data;
-    private LocalDateTime timestamp;
 
+    /**
+     * 时间戳
+     * 说明：记录响应生成的时间
+     * 
+     * @JsonFormat 注解：指定 JSON 序列化时的日期格式
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private LocalDateTime timestamp;
 
     public static <T> Result<T> success() {
         Result<T> result = new Result<>();
@@ -43,7 +51,6 @@ public class Result<T> implements Serializable {
         result.setTimestamp(LocalDateTime.now());
         return result;
     }
-
 
     public static <T> Result<T> success(T data) {
         Result<T> result = new Result<>();
@@ -54,8 +61,7 @@ public class Result<T> implements Serializable {
         return result;
     }
 
-    public static <T> Result<T> success(String message, T data)
-    {
+    public static <T> Result<T> success(String message, T data) {
         Result<T> result = new Result<>();
         result.setCode(200);
         result.setMessage(message);
@@ -63,7 +69,6 @@ public class Result<T> implements Serializable {
         result.setTimestamp(LocalDateTime.now());
         return result;
     }
-
 
     public static <T> Result<T> fail(String message) {
         Result<T> result = new Result<>();
@@ -73,9 +78,7 @@ public class Result<T> implements Serializable {
         return result;
     }
 
-
-    public static <T> Result<T> fail(Integer code, String
-            message) {
+    public static <T> Result<T> fail(Integer code, String message) {
         Result<T> result = new Result<>();
         result.setCode(code);
         result.setMessage(message);

@@ -818,10 +818,15 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
             createCell(row, colIndex++, remark, rowStyle);
         }
 
-        // 自动调整列宽
+        // Excel 列宽限制：255 个字符 = 65280 个单位（1/256 of a character width）
+        final int MAX_COLUMN_WIDTH = 65280; // 255 * 256
+
+        // 自动调整列宽，但需要限制最大宽度
         for (int i = 0; i < headers.length; i++) {
             sheet.autoSizeColumn(i);
-            sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 1000);
+            int currentWidth = sheet.getColumnWidth(i) + 1000;
+            // 确保不超过 Excel 的最大列宽限制
+            sheet.setColumnWidth(i, Math.min(currentWidth, MAX_COLUMN_WIDTH));
         }
 
         // 写入输出流

@@ -340,16 +340,38 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
                     return;
                 }
 
+                // 解析风险等级（从文本转换为数字）
+                Integer riskLevel = 2; // 默认中风险
+                if (StringUtils.hasText(excelData.getRiskLevel())) {
+                    String riskLevelText = excelData.getRiskLevel().trim();
+                    switch (riskLevelText) {
+                        case "低风险":
+                            riskLevel = 1;
+                            break;
+                        case "中风险":
+                            riskLevel = 2;
+                            break;
+                        case "高风险":
+                            riskLevel = 3;
+                            break;
+                        default:
+                            errorList.add("第 " + rowIndex.get() + " 行：风险等级「" + riskLevelText
+                                    + "」无效，必须是：低风险、中风险、高风险之一（将使用默认值：中风险）");
+                            // 不return，继续处理，使用默认值
+                            break;
+                    }
+                }
+
                 // 转换为实体对象
                 SensitiveWords word = SensitiveWords.builder()
                         .keyword(excelData.getKeyword().trim())
                         .detectionType(detectionType)
+                        .riskLevel(riskLevel) // 使用解析后的风险等级
                         .alertMessage(StringUtils.hasText(excelData.getAlertMessage())
                                 ? excelData.getAlertMessage().trim()
                                 : null)
                         .categoryId(1L) // 默认分类ID（可根据实际情况调整）
                         .matchType(1) // 默认模糊匹配
-                        .riskLevel(2) // 默认中风险
                         .isActive(true) // 默认启用
                         .createdBy(createdBy)
                         .build();
@@ -430,11 +452,30 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
 
         // 2. 转换为 Excel DTO（新格式）
         List<SensitiveWordExcelDTO> excelDataList = wordList.stream()
-                .map(word -> SensitiveWordExcelDTO.builder()
-                        .detectionType(word.getDetectionType() != null ? word.getDetectionType() : "关键词")
-                        .keyword(word.getKeyword())
-                        .alertMessage(word.getAlertMessage())
-                        .build())
+                .map(word -> {
+                    // 将风险等级数字转换为文本
+                    String riskLevelText = "中风险"; // 默认值
+                    if (word.getRiskLevel() != null) {
+                        switch (word.getRiskLevel()) {
+                            case 1:
+                                riskLevelText = "低风险";
+                                break;
+                            case 2:
+                                riskLevelText = "中风险";
+                                break;
+                            case 3:
+                                riskLevelText = "高风险";
+                                break;
+                        }
+                    }
+
+                    return SensitiveWordExcelDTO.builder()
+                            .detectionType(word.getDetectionType() != null ? word.getDetectionType() : "关键词")
+                            .keyword(word.getKeyword())
+                            .riskLevel(riskLevelText)
+                            .alertMessage(word.getAlertMessage())
+                            .build();
+                })
                 .toList();
 
         // 3. 导出 Excel
@@ -451,6 +492,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * 模板列结构：
      * - 类型（关键词/书名/作者）
      * - 关键词
+     * - 风险等级（低风险/中风险/高风险）
      * - 警报信息
      */
     @Override
@@ -458,20 +500,23 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         // 创建示例数据（参考实际敏感词数据）
         List<SensitiveWordExcelDTO> templateData = new ArrayList<>();
 
-        // 关键词类型示例
+        // 关键词类型示例（展示不同风险等级）
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("关键词")
                 .keyword("澳门博彩")
+                .riskLevel("高风险")
                 .alertMessage("疑似赌博相关")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("关键词")
                 .keyword("法轮功")
+                .riskLevel("高风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("关键词")
                 .keyword("警察&腐败")
+                .riskLevel("中风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
 
@@ -479,11 +524,13 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("书名")
                 .keyword("儿子与情人")
+                .riskLevel("中风险")
                 .alertMessage("疑似不良价值观内容")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("书名")
                 .keyword("一个女人的史诗")
+                .riskLevel("高风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
 
@@ -491,16 +538,19 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("作者")
                 .keyword("白先勇")
+                .riskLevel("低风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("作者")
                 .keyword("蔡英文")
+                .riskLevel("高风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
         templateData.add(SensitiveWordExcelDTO.builder()
                 .detectionType("作者")
                 .keyword("柴静")
+                .riskLevel("中风险")
                 .alertMessage("疑似敏感政治内容")
                 .build());
 

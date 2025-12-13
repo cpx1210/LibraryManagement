@@ -97,9 +97,9 @@ public class DetectionResultDTO {
 
     /**
      * 综合风险等级
-     * high - 高风险（命中敏感词）
-     * medium - 中风险（命中问题书目）
-     * low - 低风险（非白名单出版社）
+     * high - 高风险（命中敏感词或问题书目）
+     * medium - 中风险（非白名单出版社）
+     * low - 低风险（无问题）
      */
     private String riskLevel;
 
@@ -109,26 +109,34 @@ public class DetectionResultDTO {
     private String remark;
 
     /**
-     * 判断是否为问题书目（命中敏感词或问题书目）
+     * 判断是否为问题书目（命中敏感词或问题书目或非白名单出版社）
      *
      * @return 是否为问题书目
      */
     public boolean isProblemBook() {
-        return Boolean.TRUE.equals(hitSensitive) || Boolean.TRUE.equals(hitProblemBook);
+        return Boolean.TRUE.equals(hitSensitive)
+                || Boolean.TRUE.equals(hitProblemBook)
+                || Boolean.FALSE.equals(isWhitelistPublisher);
     }
 
     /**
      * 计算综合风险等级
+     * 
+     * 优先级（按顺序）：
+     * 1. 命中敏感词 → high（高风险）
+     * 2. 命中问题书目 → high（高风险）
+     * 3. 非白名单出版社 → medium（中风险）
+     * 4. 无问题 → low（低风险）
      */
     public void calculateRiskLevel() {
         if (Boolean.TRUE.equals(hitSensitive)) {
-            this.riskLevel = "high";
+            this.riskLevel = "high"; // 命中敏感词 → 高风险
         } else if (Boolean.TRUE.equals(hitProblemBook)) {
-            this.riskLevel = "medium";
+            this.riskLevel = "high"; // 命中问题书目 → 高风险
         } else if (Boolean.FALSE.equals(isWhitelistPublisher)) {
-            this.riskLevel = "low";
+            this.riskLevel = "medium"; // 非白名单出版社 → 中风险
         } else {
-            this.riskLevel = "low";
+            this.riskLevel = "low"; // 无问题 → 低风险
         }
     }
 }

@@ -64,7 +64,11 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="序号" width="60" align="center">
+          <template #default="{ $index }">
+            {{ (queryForm.pageNum - 1) * queryForm.pageSize + $index + 1 }}
+          </template>
+        </el-table-column>
         <el-table-column prop="keyword" label="敏感词内容" min-width="180" />
         <el-table-column prop="detectionType" label="敏感词类别" width="120" align="center">
           <template #default="{ row }">

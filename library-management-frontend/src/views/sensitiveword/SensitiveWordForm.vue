@@ -42,6 +42,39 @@
         </div>
       </el-form-item>
 
+      <!-- 风险等级 -->
+      <el-form-item label="风险等级" prop="riskLevel">
+        <el-select
+          v-model="form.riskLevel"
+          placeholder="请选择风险等级"
+          style="width: 100%"
+        >
+          <el-option label="低风险" :value="1">
+            <span style="display: flex; align-items: center;">
+              <el-tag type="success" effect="light" size="small" style="margin-right: 8px;">低风险</el-tag>
+              <span style="color: #606266; font-size: 12px;">对内容影响较小</span>
+            </span>
+          </el-option>
+          <el-option label="中风险" :value="2">
+            <span style="display: flex; align-items: center;">
+              <el-tag type="warning" effect="light" size="small" style="margin-right: 8px;">中风险</el-tag>
+              <span style="color: #606266; font-size: 12px;">需要注意审核</span>
+            </span>
+          </el-option>
+          <el-option label="高风险" :value="3">
+            <span style="display: flex; align-items: center;">
+              <el-tag type="danger" effect="light" size="small" style="margin-right: 8px;">高风险</el-tag>
+              <span style="color: #606266; font-size: 12px;">严重问题，需立即处理</span>
+            </span>
+          </el-option>
+        </el-select>
+        <div class="form-tip">
+          <el-text type="info" size="small">
+            命中敏感词时，会根据风险等级在检测结果中显示不同的警告级别
+          </el-text>
+        </div>
+      </el-form-item>
+
       <!-- 警报信息 -->
       <el-form-item label="警报信息" prop="alertMessage">
         <el-input
@@ -104,6 +137,7 @@ const form = reactive({
   wordId: null,
   keyword: '',
   detectionType: '关键词',
+  riskLevel: 2, // 默认中风险
   alertMessage: ''
 })
 
@@ -118,6 +152,9 @@ const rules = {
   ],
   detectionType: [
     { required: true, message: '请选择敏感词类别', trigger: 'change' }
+  ],
+  riskLevel: [
+    { required: true, message: '请选择风险等级', trigger: 'change' }
   ]
 }
 
@@ -135,6 +172,7 @@ watch(() => props.visible, (val) => {
           wordId: props.formData.wordId,
           keyword: props.formData.keyword,
           detectionType: props.formData.detectionType || '关键词',
+          riskLevel: props.formData.riskLevel || 2,
           alertMessage: props.formData.alertMessage || ''
         })
       } else {
@@ -160,6 +198,7 @@ const resetForm = () => {
     wordId: null,
     keyword: '',
     detectionType: '关键词',
+    riskLevel: 2,
     alertMessage: ''
   })
   formRef.value?.clearValidate()
@@ -192,6 +231,7 @@ const handleSubmit = async () => {
         wordId: form.wordId,
         keyword: form.keyword,
         detectionType: form.detectionType,
+        riskLevel: form.riskLevel,
         alertMessage: form.alertMessage
       }
       response = await updateSensitiveWord(updateData)
@@ -200,6 +240,7 @@ const handleSubmit = async () => {
       const createData = {
         keyword: form.keyword,
         detectionType: form.detectionType,
+        riskLevel: form.riskLevel,
         alertMessage: form.alertMessage
       }
       response = await createSensitiveWord(createData)

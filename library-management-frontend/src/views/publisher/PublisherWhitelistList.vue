@@ -71,7 +71,11 @@
         stripe
         style="width: 100%"
       >
-        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="序号" width="60" align="center">
+          <template #default="{ $index }">
+            {{ (pagination.pageNum - 1) * pagination.pageSize + $index + 1 }}
+          </template>
+        </el-table-column>
         <el-table-column prop="publisherName" label="出版社名称" min-width="300" show-overflow-tooltip />
         <el-table-column prop="years" label="年份批次" width="120" align="center">
           <template #default="{ row }">
