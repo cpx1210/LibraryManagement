@@ -141,9 +141,15 @@ public class LogAspect {
         // 5. 记录请求参数
         if (logAnnotation.saveRequestData()) {
             String requestData = getRequestData(joinPoint);
-            // 对于 create 操作，请求参数作为 newValue
-            if ("create".equals(logAnnotation.operationType())) {
+            // 对于 create、export、delete 操作，请求参数作为 newValue
+            String operationType = logAnnotation.operationType();
+            if ("create".equals(operationType) || "export".equals(operationType) || "delete".equals(operationType)) {
                 operationLog.setNewValue(requestData);
+                // 尝试从请求参数中提取目标ID（如 taskId、bookId 等）
+                Long targetId = extractTargetIdFromArgs(joinPoint);
+                if (targetId != null) {
+                    operationLog.setTargetId(targetId);
+                }
             }
         }
 
@@ -151,13 +157,19 @@ public class LogAspect {
         if (logAnnotation.saveResponseData() && result != null) {
             String responseData = toJsonString(result);
             // 更新 newValue（如果返回值中包含 ID，优先使用返回值）
-            if (result != null) {
-                operationLog.setNewValue(responseData);
-                // 尝试从返回值中提取目标ID
-                Long targetId = extractTargetId(result);
-                if (targetId != null) {
-                    operationLog.setTargetId(targetId);
-                }
+            operationLog.setNewValue(responseData);
+            // 尝试从返回值中提取目标ID
+            Long targetId = extractTargetId(result);
+            if (targetId != null) {
+                operationLog.setTargetId(targetId);
+            }
+        }
+
+        // 6.1 对于 void 返回类型的方法（如导出操作），如果没有设置 newValue，使用请求参数
+        if (operationLog.getNewValue() == null && logAnnotation.saveRequestData()) {
+            String requestData = getRequestData(joinPoint);
+            if (requestData != null && !requestData.isEmpty()) {
+                operationLog.setNewValue(requestData);
             }
         }
 
@@ -340,6 +352,64 @@ public class LogAspect {
             }
         } catch (Exception e) {
             log.debug("提取目标ID失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 从方法参数中提取目标ID
+     * 
+     * 说明：尝试从方法参数中提取常见的 ID 参数（如 taskId、bookId、wordId 等）
+     */
+    private Long extractTargetIdFromArgs(JoinPoint joinPoint) {
+        try {
+            Object[] args = joinPoint.getArgs();
+            if (args == null || args.length == 0) {
+                return null;
+            }
+
+            // 遍历参数，查找 Long 类型的 ID 参数
+            for (Object arg : args) {
+                if (arg == null) {
+                    continue;
+                }
+
+                // 如果是 Long 类型，直接返回
+                if (arg instanceof Long) {
+                    return (Long) arg;
+                }
+
+                // 如果是 String 类型，尝试转换为 Long（如 barcode）
+                if (arg instanceof String) {
+                    try {
+                        return Long.parseLong((String) arg);
+                    } catch (NumberFormatException ignored) {
+                        // 不是数字字符串，继续查找
+                    }
+                }
+
+                // 如果是对象，尝试提取 ID 字段
+                if (arg instanceof HttpServletRequest || arg instanceof jakarta.servlet.http.HttpServletResponse) {
+                    continue; // 跳过 HttpServletRequest/Response
+                }
+
+                // 尝试从对象中提取 ID
+                Class<?> clazz = arg.getClass();
+                String[] idFieldNames = { "taskId", "bookId", "wordId", "publisherId", "userId", "id" };
+                for (String fieldName : idFieldNames) {
+                    try {
+                        String methodName = "get" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+                        java.lang.reflect.Method method = clazz.getMethod(methodName);
+                        Object id = method.invoke(arg);
+                        if (id instanceof Long) {
+                            return (Long) id;
+                        }
+                    } catch (NoSuchMethodException ignored) {
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("从参数中提取目标ID失败: {}", e.getMessage());
         }
         return null;
     }

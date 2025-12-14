@@ -2,6 +2,7 @@ package com.library.management.module.detection.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.module.detection.dto.*;
 import com.library.management.module.detection.entity.BooklistCheckDetail;
@@ -53,6 +54,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
      * 上传书单并创建检测任务
      */
     @Override
+    @Log(module = "detection", operationType = "create")
     @Transactional(rollbackFor = Exception.class)
     public BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName) {
         log.info("用户 {} 上传书单文件：{}", userName, file.getOriginalFilename());
@@ -318,6 +320,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
      * 导出检测结果（Excel，带颜色标注）
      */
     @Override
+    @Log(module = "detection", operationType = "export")
     public void exportCheckResult(Long taskId, HttpServletResponse response) {
         log.info("导出检测结果：taskId={}", taskId);
 
@@ -374,6 +377,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
      * 删除检测任务
      */
     @Override
+    @Log(module = "detection", operationType = "delete")
     @Transactional(rollbackFor = Exception.class)
     public void deleteTask(Long taskId) {
         log.info("删除检测任务：taskId={}", taskId);
@@ -393,6 +397,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
      * 取消检测任务
      */
     @Override
+    @Log(module = "detection", operationType = "update")
     public void cancelTask(Long taskId) {
         log.info("取消检测任务：taskId={}", taskId);
 

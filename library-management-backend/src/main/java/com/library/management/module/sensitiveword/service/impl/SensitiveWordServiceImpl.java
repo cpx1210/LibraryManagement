@@ -424,6 +424,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      * - 警报信息
      */
     @Override
+    @Log(module = "sensitive_word", operationType = "export")
     public void exportWords(HttpServletResponse response, SensitiveWordQueryRequest request) {
         // 1. 查询数据
         LambdaQueryWrapper<SensitiveWords> wrapper = new LambdaQueryWrapper<>();

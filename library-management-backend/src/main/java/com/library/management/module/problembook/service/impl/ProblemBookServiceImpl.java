@@ -401,6 +401,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      * 3. 使用 ExcelUtil 写入响应流
      */
     @Override
+    @Log(module = "problem_book", operationType = "export")
     public void exportBooks(HttpServletResponse response, ProblemBookQueryRequest request) {
         // 1. 查询数据
         LambdaQueryWrapper<ProblemBook> wrapper = new LambdaQueryWrapper<>();

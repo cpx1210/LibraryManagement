@@ -263,6 +263,7 @@ public class UserServiceImpl implements UserService {
      * - 用户忘记密码时重置
      */
     @Override
+    @Log(module = "user", operationType = "update")
     public void resetPassword(Long userId, String newPassword) {
         // 1. 检查用户是否存在
         SysUser user = userMapper.selectById(userId);

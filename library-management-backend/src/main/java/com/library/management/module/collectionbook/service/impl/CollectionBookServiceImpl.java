@@ -5,6 +5,7 @@ import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.library.management.common.annotation.Log;
 import com.library.management.common.exception.BusinessException;
 import com.library.management.module.collectionbook.dto.*;
 import com.library.management.module.collectionbook.entity.CollectionBook;
@@ -133,6 +134,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "create")
     @Transactional
     public CollectionBookDTO createBook(CollectionBookCreateRequest request, Long createdBy) {
         // 1. 检查条码是否已存在
@@ -154,6 +156,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "update")
     @Transactional
     public CollectionBookDTO updateBook(CollectionBookUpdateRequest request, Long updatedBy) {
         // 1. 检查图书是否存在
@@ -223,6 +226,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "delete")
     @Transactional
     public void deleteBook(String barcode) {
         CollectionBook book = collectionBookMapper.selectById(barcode);
@@ -234,6 +238,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "delete")
     @Transactional
     public int deleteBatchBooks(List<String> barcodes) {
         if (barcodes == null || barcodes.isEmpty()) {
@@ -263,6 +268,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "import")
     @Transactional
     public Map<String, Object> importBooks(MultipartFile file, Long createdBy) {
         Map<String, Object> result = new HashMap<>();
@@ -330,6 +336,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "export")
     public void exportBooks(HttpServletResponse response, CollectionBookQueryRequest request) {
         try {
             // 设置响应头
@@ -407,6 +414,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "update")
     @Transactional
     public CollectionBookDTO markAsProblem(String barcode, String problemType, String problemReason, Long updatedBy) {
         CollectionBook book = collectionBookMapper.selectById(barcode);
@@ -427,6 +435,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     }
 
     @Override
+    @Log(module = "collection_book", operationType = "update")
     @Transactional
     public CollectionBookDTO markAsNormal(String barcode, Long updatedBy) {
         CollectionBook book = collectionBookMapper.selectById(barcode);

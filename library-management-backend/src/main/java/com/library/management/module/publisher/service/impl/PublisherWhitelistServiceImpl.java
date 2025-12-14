@@ -377,6 +377,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      * 导出所有符合查询条件的出版社白名单数据到 Excel 文件
      */
     @Override
+    @Log(module = "publisher_whitelist", operationType = "export")
     public void exportPublishers(HttpServletResponse response, PublisherWhitelistQueryRequest request) {
         // 1. 查询要导出的数据
         LambdaQueryWrapper<PublisherWhitelist> wrapper = new LambdaQueryWrapper<>();
