@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    # MySQL 数据源配置（生产环境）
+    # 使用环境变量配置，避免硬编码敏感信息
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://mysql:3306/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+
+  # JPA 配置
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    show-sql: false  # 生产环境关闭SQL日志
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: false
+
+# 日志级别（生产环境）
+logging:
+  level:
+    com.library: info
+    org.springframework: warn
+    org.springframework.security: warn
+  file:
+    name: /app/logs/application.log
+  pattern:
+    file: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+
+# JWT配置（生产环境请修改密钥）
+jwt:
+  secret: ${JWT_SECRET:library-management-system-secret-key-2024-please-change-in-production}
+  expiration: 7200000  # 2小时
+

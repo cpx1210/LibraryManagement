@@ -1,0 +1,24 @@
+# ==========================================
+# 图书馆管理系统环境变量配置
+# ==========================================
+# ⚠️ 重要：生产环境请务必修改所有密码和密钥！
+# 
+# 使用方法：
+# 1. 将此文件重命名为 .env
+# 2. 修改下面的密码和密钥
+# 3. 上传到服务器的 /root/library-management/ 目录
+
+# MySQL数据库配置
+MYSQL_ROOT_PASSWORD=Library@Root2024!
+MYSQL_DATABASE=library_management
+MYSQL_USER=library_user
+MYSQL_PASSWORD=LibraryUser@2024!
+
+# JWT密钥（建议32位以上随机字符串）
+# 可以使用 openssl rand -base64 32 生成随机密钥
+JWT_SECRET=library-jwt-secret-2024-please-change-this-to-random-string-at-least-32-characters
+
+# JVM参数配置（根据服务器内存调整）
+# 当前配置：最小512MB，最大1GB
+JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC
+

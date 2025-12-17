@@ -1,0 +1,36 @@
+# 生产环境docker-compose配置
+# 使用方法: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  mysql:
+    # 生产环境建议不暴露3306端口，只允许容器内访问
+    ports: []
+    # 或者使用更安全的配置
+    # ports:
+    #   - "127.0.0.1:3306:3306"  # 只允许本地访问
+
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # 生产环境JVM参数（根据服务器配置调整）
+      JAVA_OPTS: ${JAVA_OPTS:--Xms1024m -Xmx2048m -XX:+UseG1GC -XX:MaxGCPauseMillis=200}
+    # 可以添加资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 3G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  frontend:
+    # 生产环境建议使用HTTPS
+    # 需要配置SSL证书
+    # ports:
+    #   - "443:443"
+    # volumes:
+    #   - ./ssl:/etc/nginx/ssl:ro
+
