@@ -90,6 +90,7 @@ $RECYCLE.BIN/
 
 # 压缩文件
 *.zip
+*.tar
 *.tar.gz
 *.rar
 
