@@ -78,10 +78,10 @@ public class UserController {
      * @param request 用户修改请求（JSON 请求体）
      * @return 修改后的用户信息
      *
-     * 注意：此接口不修改密码，密码通过单独的密码重置接口修改
+     *         注意：此接口不修改密码，密码通过单独的密码重置接口修改
      */
     @Operation(summary = "修改用户信息", description = "更新用户信息（不包含密码修改）")
-    @PutMapping
+    @PostMapping("/update")
     public Result<UserDTO> updateUser(@Valid @RequestBody UserUpdateRequest request) {
         UserDTO user = userService.updateUser(request);
         return Result.success("用户修改成功", user);
@@ -93,11 +93,11 @@ public class UserController {
      * @param userId 用户ID（路径参数）
      * @return 删除结果
      *
-     * 注意：这是物理删除，数据无法恢复
-     * 建议使用禁用功能代替删除（调用修改接口设置 isActive=0）
+     *         注意：这是物理删除，数据无法恢复
+     *         建议使用禁用功能代替删除（调用修改接口设置 isActive=0）
      */
     @Operation(summary = "删除用户", description = "物理删除用户（不可恢复）")
-    @DeleteMapping("/{userId}")
+    @PostMapping("/delete/{userId}")
     public Result<Void> deleteUser(@PathVariable Long userId) {
         userService.deleteUser(userId);
         return Result.success("用户删除成功", null);
@@ -109,12 +109,12 @@ public class UserController {
      * @param request 密码重置请求（JSON 请求体）
      * @return 重置结果
      *
-     * 使用场景：
-     * - 管理员为用户重置密码
-     * - 用户忘记密码时重置
+     *         使用场景：
+     *         - 管理员为用户重置密码
+     *         - 用户忘记密码时重置
      */
     @Operation(summary = "重置用户密码", description = "管理员重置指定用户的密码")
-    @PutMapping("/reset-password")
+    @PostMapping("/reset-password")
     public Result<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
         userService.resetPassword(request.getUserId(), request.getNewPassword());
         return Result.success("密码重置成功", null);

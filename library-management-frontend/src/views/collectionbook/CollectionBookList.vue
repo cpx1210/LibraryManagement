@@ -71,6 +71,10 @@
               <el-icon><Document /></el-icon>
               下载模板
             </el-button>
+            <el-button type="info" @click="handleCheckBooks">
+              <el-icon><Search /></el-icon>
+              检测书单
+            </el-button>
             <el-button type="danger" :disabled="selectedRows.length === 0" @click="handleBatchDelete">
               <el-icon><Delete /></el-icon>
               批量删除
@@ -315,8 +319,10 @@ import {
   importCollectionBooks,
   exportCollectionBooks,
   downloadCollectionBookTemplate,
-  markAsProblem
+  markAsProblem,
+  checkCollectionBooks
 } from '@/api/collectionBook'
+import { useRouter } from 'vue-router'
 
 // 搜索表单
 const searchForm = reactive({
@@ -600,6 +606,64 @@ const handleExport = async () => {
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败')
+  }
+}
+
+// 检测书单
+const router = useRouter()
+const handleCheckBooks = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要将当前筛选条件下的馆藏书目提交检测吗？',
+      '检测确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+
+    // 准备检测参数
+    const checkParams = {
+      taskName: `馆藏书目检测-${new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-')}`,
+      ...searchForm
+    }
+
+    const loadingInstance = ElMessage({
+      message: '正在创建检测任务...',
+      type: 'info',
+      duration: 0
+    })
+
+    const response = await checkCollectionBooks(checkParams)
+    
+    loadingInstance.close()
+
+    if (response.code === 200) {
+      ElMessage.success(`检测任务创建成功！共检测 ${response.data.totalBooks} 本书目`)
+      
+      // 跳转到检测历史页面
+      await ElMessageBox.confirm(
+        '检测任务已创建，是否前往查看检测结果？',
+        '提示',
+        {
+          confirmButtonText: '查看结果',
+          cancelButtonText: '稍后查看',
+          type: 'success'
+        }
+      )
+      
+      // 跳转到检测历史页面，并传递taskId
+      router.push({
+        path: '/detection/history',
+        query: { taskId: response.data.taskId }
+      })
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('创建检测任务失败:', error)
+      ElMessage.error(error.message || '创建检测任务失败')
+    }
   }
 }
 

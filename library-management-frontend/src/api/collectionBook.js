@@ -99,8 +99,8 @@ export function createCollectionBook(data) {
  */
 export function updateCollectionBook(data) {
     return request({
-        url: '/collection-books',
-        method: 'put',
+        url: '/collection-books/update',
+        method: 'post',
         data
     })
 }
@@ -112,8 +112,8 @@ export function updateCollectionBook(data) {
  */
 export function deleteCollectionBook(barcode) {
     return request({
-        url: `/collection-books/${barcode}`,
-        method: 'delete'
+        url: `/collection-books/delete/${barcode}`,
+        method: 'post'
     })
 }
 
@@ -124,8 +124,8 @@ export function deleteCollectionBook(barcode) {
  */
 export function deleteBatchCollectionBooks(barcodes) {
     return request({
-        url: '/collection-books/batch',
-        method: 'delete',
+        url: '/collection-books/delete/batch',
+        method: 'post',
         data: barcodes
     })
 }
@@ -229,6 +229,19 @@ export function getCollectionBookStatistics() {
     return request({
         url: '/collection-books/statistics',
         method: 'get'
+    })
+}
+
+/**
+ * 从馆藏书目创建检测任务
+ * @param {Object} params - 查询条件（可选）
+ * @returns {Promise} 检测任务信息
+ */
+export function checkCollectionBooks(params) {
+    return request({
+        url: '/booklist-check/check-from-collection',
+        method: 'post',
+        data: params
     })
 }
 

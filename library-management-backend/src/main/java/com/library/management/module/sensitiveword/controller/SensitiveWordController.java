@@ -93,7 +93,7 @@ public class SensitiveWordController {
      * @return 修改后的敏感词信息
      */
     @Operation(summary = "修改敏感词信息", description = "更新敏感词信息")
-    @PutMapping
+    @PostMapping("/update")
     public Result<SensitiveWordDTO> updateWord(@Valid @RequestBody SensitiveWordUpdateRequest request) {
         // 获取当前登录用户名
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -110,7 +110,7 @@ public class SensitiveWordController {
      * @return 删除结果
      */
     @Operation(summary = "删除敏感词", description = "物理删除敏感词（不可恢复）")
-    @DeleteMapping("/{wordId}")
+    @PostMapping("/delete/{wordId}")
     public Result<Void> deleteWord(@PathVariable Long wordId) {
         sensitiveWordService.deleteWord(wordId);
         return Result.success("敏感词删除成功", null);
@@ -137,7 +137,7 @@ public class SensitiveWordController {
      * 批量导出敏感词
      *
      * @param response HTTP 响应对象
-     * @param request 查询条件（可选）
+     * @param request  查询条件（可选）
      */
     @Operation(summary = "批量导出敏感词", description = "导出敏感词为 Excel 文件")
     @GetMapping("/export")
@@ -161,9 +161,9 @@ public class SensitiveWordController {
      *
      * @return 所有敏感词列表
      *
-     * 使用场景：
-     * - 前端展示敏感词全量数据
-     * - 内部敏感词检测功能
+     *         使用场景：
+     *         - 前端展示敏感词全量数据
+     *         - 内部敏感词检测功能
      */
     @Operation(summary = "获取所有敏感词", description = "获取所有敏感词（带缓存优化）")
     @GetMapping("/all")
@@ -177,9 +177,9 @@ public class SensitiveWordController {
      *
      * @return 所有分类列表
      *
-     * 使用场景：
-     * - 前端下拉框选择分类
-     * - 前端筛选条件
+     *         使用场景：
+     *         - 前端下拉框选择分类
+     *         - 前端筛选条件
      */
     @Operation(summary = "获取所有敏感词分类", description = "获取所有敏感词分类列表")
     @GetMapping("/categories")

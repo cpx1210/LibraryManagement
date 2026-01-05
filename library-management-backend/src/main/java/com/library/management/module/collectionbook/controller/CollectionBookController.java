@@ -94,7 +94,7 @@ public class CollectionBookController {
      * @return 修改后的馆藏图书信息
      */
     @Operation(summary = "修改馆藏图书信息", description = "更新馆藏图书信息（部分更新）")
-    @PutMapping
+    @PostMapping("/update")
     public Result<CollectionBookDTO> updateBook(@Valid @RequestBody CollectionBookUpdateRequest request) {
         Long currentUserId = getCurrentUserId();
         CollectionBookDTO book = collectionBookService.updateBook(request, currentUserId);
@@ -108,7 +108,7 @@ public class CollectionBookController {
      * @return 删除结果
      */
     @Operation(summary = "删除馆藏图书", description = "物理删除馆藏图书（不可恢复）")
-    @DeleteMapping("/{barcode}")
+    @PostMapping("/delete/{barcode}")
     public Result<Void> deleteBook(
             @Parameter(description = "条码") @PathVariable String barcode) {
         collectionBookService.deleteBook(barcode);
@@ -122,7 +122,7 @@ public class CollectionBookController {
      * @return 删除数量
      */
     @Operation(summary = "批量删除馆藏图书", description = "批量物理删除馆藏图书")
-    @DeleteMapping("/batch")
+    @PostMapping("/delete/batch")
     public Result<Integer> deleteBatchBooks(@RequestBody List<String> barcodes) {
         int deleted = collectionBookService.deleteBatchBooks(barcodes);
         return Result.success("批量删除成功，删除数量：" + deleted, deleted);

@@ -72,8 +72,8 @@ export function createSensitiveWord(data) {
  */
 export function updateSensitiveWord(data) {
   return request({
-    url: '/sensitive-words',
-    method: 'put',
+    url: '/sensitive-words/update',
+    method: 'post',
     data
   })
 }
@@ -85,8 +85,8 @@ export function updateSensitiveWord(data) {
  */
 export function deleteSensitiveWord(wordId) {
   return request({
-    url: `/sensitive-words/${wordId}`,
-    method: 'delete'
+    url: `/sensitive-words/delete/${wordId}`,
+    method: 'post'
   })
 }
 

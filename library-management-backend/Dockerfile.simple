@@ -1,0 +1,28 @@
+# 简化版Dockerfile - 使用本地已构建的jar包
+# 只需要JRE基础镜像，不需要Maven
+
+FROM eclipse-temurin:21-jre-jammy
+
+# 设置工作目录
+WORKDIR /app
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 复制本地已构建的jar包
+COPY target/library-management-backend-*.jar app.jar
+
+# 更改文件所有者
+RUN chown -R appuser:appuser /app
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8080
+
+# 设置JVM参数
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
+
+# 启动应用
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -27,12 +27,12 @@ import java.util.Map;
  * @RequestMapping: 定义基础路径为 /problem-books
  * @RequiredArgsConstructor: Lombok 注解，自动注入 final 字段
  *
- * RESTful API 设计规范：
- * - GET /problem-books：查询列表
- * - GET /problem-books/{bookId}：查询详情
- * - POST /problem-books：创建新记录
- * - PUT /problem-books：更新记录
- * - DELETE /problem-books/{bookId}：删除记录
+ *                           RESTful API 设计规范：
+ *                           - GET /problem-books：查询列表
+ *                           - GET /problem-books/{bookId}：查询详情
+ *                           - POST /problem-books：创建新记录
+ *                           - PUT /problem-books：更新记录
+ *                           - DELETE /problem-books/{bookId}：删除记录
  *
  * @author Library Management System
  * @since 2025-10-22
@@ -51,15 +51,15 @@ public class ProblemBookController {
      * @param request 查询条件（自动绑定查询参数）
      * @return 分页结果
      *
-     * 支持的查询条件：
-     * - bookName：书名（模糊查询）
-     * - author：作者（模糊查询）
-     * - isbn：ISBN 编号（精确查询）
-     * - publisher：出版社（模糊查询）
-     * - publishYear：出版年份（精确查询）
-     * - problemType：问题类型（模糊查询）
-     * - pageNum：页码（默认第1页）
-     * - pageSize：每页大小（默认10条）
+     *         支持的查询条件：
+     *         - bookName：书名（模糊查询）
+     *         - author：作者（模糊查询）
+     *         - isbn：ISBN 编号（精确查询）
+     *         - publisher：出版社（模糊查询）
+     *         - publishYear：出版年份（精确查询）
+     *         - problemType：问题类型（模糊查询）
+     *         - pageNum：页码（默认第1页）
+     *         - pageSize：每页大小（默认10条）
      */
     @Operation(summary = "查询问题书目列表", description = "支持分页和多条件查询（书名、作者、ISBN、出版社、出版年份、问题类型）")
     @GetMapping
@@ -90,16 +90,16 @@ public class ProblemBookController {
      * @Valid: 启用 Bean Validation 参数校验
      * @RequestBody: 接收 JSON 格式的请求体
      *
-     * 请求体示例：
-     * {
-     *   "bookName": "问题图书名称",
-     *   "author": "作者",
-     *   "isbn": "9787111111111",
-     *   "publisher": "出版社",
-     *   "publishYear": "2023",
-     *   "problemType": "政治问题",
-     *   "source": "教育部通报"
-     * }
+     *               请求体示例：
+     *               {
+     *               "bookName": "问题图书名称",
+     *               "author": "作者",
+     *               "isbn": "9787111111111",
+     *               "publisher": "出版社",
+     *               "publishYear": "2023",
+     *               "problemType": "政治问题",
+     *               "source": "教育部通报"
+     *               }
      */
     @Operation(summary = "创建新问题书目", description = "新增问题书目")
     @PostMapping
@@ -117,20 +117,20 @@ public class ProblemBookController {
      * @param request 问题书目修改请求（JSON 请求体）
      * @return 修改后的问题书目信息
      *
-     * 请求体示例：
-     * {
-     *   "bookId": 1,
-     *   "bookName": "修改后的书名",
-     *   "author": "修改后的作者",
-     *   "problemType": "内容不当"
-     * }
+     *         请求体示例：
+     *         {
+     *         "bookId": 1,
+     *         "bookName": "修改后的书名",
+     *         "author": "修改后的作者",
+     *         "problemType": "内容不当"
+     *         }
      *
-     * 说明：
-     * - bookId 必填，用于指定要修改的问题书目
-     * - 其他字段可选，只更新提供的字段
+     *         说明：
+     *         - bookId 必填，用于指定要修改的问题书目
+     *         - 其他字段可选，只更新提供的字段
      */
     @Operation(summary = "修改问题书目信息", description = "更新问题书目信息（部分更新）")
-    @PutMapping
+    @PostMapping("/update")
     public Result<ProblemBookDTO> updateBook(@Valid @RequestBody ProblemBookUpdateRequest request) {
         // TODO: 获取当前登录用户ID（暂时使用固定值 1L）
         Long currentUserId = 1L;
@@ -145,7 +145,7 @@ public class ProblemBookController {
      * @return 删除结果
      */
     @Operation(summary = "删除问题书目", description = "物理删除问题书目（不可恢复）")
-    @DeleteMapping("/{bookId}")
+    @PostMapping("/delete/{bookId}")
     public Result<Void> deleteBook(@PathVariable Long bookId) {
         problemBookService.deleteBook(bookId);
         return Result.success("问题书目删除成功", null);
@@ -170,7 +170,7 @@ public class ProblemBookController {
      * 批量导出问题书目
      *
      * @param response HTTP 响应对象
-     * @param request 查询条件（可选）
+     * @param request  查询条件（可选）
      */
     @Operation(summary = "批量导出问题书目", description = "导出问题书目为 Excel 文件")
     @GetMapping("/export")

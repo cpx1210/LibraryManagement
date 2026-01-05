@@ -85,8 +85,8 @@ export function createProblemBook(data) {
  */
 export function updateProblemBook(data) {
   return request({
-    url: '/problem-books',
-    method: 'put',
+    url: '/problem-books/update',
+    method: 'post',
     data
   })
 }
@@ -98,8 +98,8 @@ export function updateProblemBook(data) {
  */
 export function deleteProblemBook(bookId) {
   return request({
-    url: `/problem-books/${bookId}`,
-    method: 'delete'
+    url: `/problem-books/delete/${bookId}`,
+    method: 'post'
   })
 }
 

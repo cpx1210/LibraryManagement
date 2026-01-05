@@ -15,13 +15,23 @@ public interface BooklistCheckService {
     /**
      * 上传书单并创建检测任务
      *
-     * @param file Excel文件
+     * @param file     Excel文件
      *
-     * @param userId 当前用户ID
+     * @param userId   当前用户ID
      * @param userName 当前用户姓名
      * @return 上传响应
      */
     BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName);
+
+    /**
+     * 从馆藏书目创建检测任务
+     *
+     * @param request  查询条件
+     * @param userId   当前用户ID
+     * @param userName 当前用户姓名
+     * @return 上传响应
+     */
+    BooklistUploadResponse checkFromCollection(CollectionBookCheckRequest request, Long userId, String userName);
 
     /**
      * 执行检测任务（异步）
@@ -49,7 +59,7 @@ public interface BooklistCheckService {
     /**
      * 查询检测结果明细列表
      *
-     * @param taskId 任务ID
+     * @param taskId    任务ID
      * @param riskLevel 风险等级（可选，用于筛选）
      * @return 检测结果明细列表
      */
@@ -58,7 +68,7 @@ public interface BooklistCheckService {
     /**
      * 导出检测结果（Excel，带颜色标注）
      *
-     * @param taskId 任务ID
+     * @param taskId   任务ID
      * @param response HTTP响应
      */
     void exportCheckResult(Long taskId, HttpServletResponse response);

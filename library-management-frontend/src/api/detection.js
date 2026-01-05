@@ -100,7 +100,7 @@ export function downloadTemplate() {
 export function cancelTask(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}/cancel`,
-    method: 'put'
+    method: 'post'
   })
 }
 
@@ -111,7 +111,7 @@ export function cancelTask(taskId) {
  */
 export function deleteTask(taskId) {
   return request({
-    url: `/booklist-check/tasks/${taskId}`,
-    method: 'delete'
+    url: `/booklist-check/tasks/${taskId}/delete`,
+    method: 'post'
   })
 }

@@ -50,6 +50,9 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     @Resource
     private DetectionEngine detectionEngine;
 
+    @Resource
+    private com.library.management.module.collectionbook.mapper.CollectionBookMapper collectionBookMapper;
+
     /**
      * 上传书单并创建检测任务
      */
@@ -136,6 +139,116 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .totalBooks(books.size())
                 .message("上传成功，正在检测中...")
                 .build();
+    }
+
+    /**
+     * 从馆藏书目创建检测任务
+     */
+    @Override
+    @Log(module = "detection", operationType = "create")
+    @Transactional(rollbackFor = Exception.class)
+    public BooklistUploadResponse checkFromCollection(CollectionBookCheckRequest request, Long userId,
+            String userName) {
+        log.info("用户 {} 从馆藏书目创建检测任务", userName);
+
+        // 1. 查询馆藏书目数据
+        List<com.library.management.module.collectionbook.entity.CollectionBook> collectionBooks = collectionBookMapper
+                .selectCollectionBooksByConditions(request);
+
+        if (collectionBooks == null || collectionBooks.isEmpty()) {
+            throw new BusinessException("未找到符合条件的馆藏书目");
+        }
+
+        log.info("查询到 {} 本馆藏书目", collectionBooks.size());
+
+        // 2. 将馆藏书目转换为检测用的 BookItemDTO
+        List<BookItemDTO> books = collectionBooks.stream()
+                .map(this::convertToBookItemDTO)
+                .collect(Collectors.toList());
+
+        // 3. 生成任务名称
+        String taskName = request.getTaskName();
+        if (!StringUtils.hasText(taskName)) {
+            taskName = "馆藏书目检测-" + DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now());
+        }
+
+        // 4. 创建检测任务
+        BooklistCheckTask task = BooklistCheckTask.builder()
+                .taskName(taskName)
+                .taskType("馆藏检测")
+                .submittedBy(userId)
+                .submitTime(LocalDateTime.now())
+                .originalFilename("馆藏书目数据")
+                .status("pending")
+                .totalBooks(books.size())
+                .sensitiveHits(0)
+                .problemBookHits(0)
+                .nonWhitelistPubs(0)
+                .totalProblemBooks(0)
+                .createdTime(LocalDateTime.now())
+                .build();
+
+        taskMapper.insert(task);
+
+        log.info("创建检测任务成功：taskId={}, taskName={}", task.getTaskId(), taskName);
+
+        // 5. 保存书目到明细表
+        List<BooklistCheckDetail> details = books.stream()
+                .map(book -> BooklistCheckDetail.builder()
+                        .taskId(task.getTaskId())
+                        .bookNumber(book.getBookNumber())
+                        .isbn(book.getIsbn())
+                        .bookName(book.getBookName())
+                        .subtitle(book.getSubtitle())
+                        .author1(book.getAuthor1())
+                        .author2(book.getAuthor2())
+                        .author(book.getAuthor())
+                        .publishLocation(book.getPublishLocation())
+                        .publisher(book.getPublisher())
+                        .publishDate(book.getPublishDate())
+                        .targetAudience(book.getTargetAudience())
+                        .contentSummary(book.getContentSummary())
+                        .classificationNumber(book.getClassificationNumber())
+                        .language(book.getLanguage())
+                        .hitSensitive(0)
+                        .hitProblemBook(0)
+                        .isWhitelistPublisher(0)
+                        .checkStatus("pending")
+                        .createdTime(LocalDateTime.now())
+                        .build())
+                .collect(Collectors.toList());
+
+        // 批量插入
+        batchInsertDetails(details);
+
+        log.info("保存书目明细成功：{} 条", details.size());
+
+        // 6. 异步执行检测
+        executeDetection(task.getTaskId());
+
+        // 7. 返回响应
+        return BooklistUploadResponse.builder()
+                .taskId(task.getTaskId())
+                .taskName(taskName)
+                .status("pending")
+                .totalBooks(books.size())
+                .message("检测任务创建成功，正在检测中...")
+                .build();
+    }
+
+    /**
+     * 将馆藏书目转换为检测用的 BookItemDTO
+     */
+    private BookItemDTO convertToBookItemDTO(com.library.management.module.collectionbook.entity.CollectionBook book) {
+        BookItemDTO dto = new BookItemDTO();
+        dto.setBookNumber(book.getBarcode());
+        dto.setIsbn(book.getIsbn());
+        dto.setBookName(book.getBookName());
+        dto.setAuthor1(book.getAuthor());
+        dto.setPublisher(book.getPublisher());
+        dto.setPublishDate(book.getPublishYear());
+        dto.setClassificationNumber(book.getCallNumber());
+        return dto;
     }
 
     /**

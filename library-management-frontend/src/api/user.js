@@ -33,7 +33,10 @@ export function getUserList(params) {
   return request({
     url: '/users',
     method: 'get',
-    params
+    params: {
+      ...params,
+      _t: Date.now() // 添加时间戳防止缓存
+    }
   })
 }
 
@@ -81,8 +84,8 @@ export function createUser(data) {
  */
 export function updateUser(data) {
   return request({
-    url: '/users',
-    method: 'put',
+    url: '/users/update',
+    method: 'post',
     data
   })
 }
@@ -94,8 +97,8 @@ export function updateUser(data) {
  */
 export function deleteUser(userId) {
   return request({
-    url: `/users/${userId}`,
-    method: 'delete'
+    url: `/users/delete/${userId}`,
+    method: 'post'
   })
 }
 
@@ -109,7 +112,7 @@ export function deleteUser(userId) {
 export function resetPassword(data) {
   return request({
     url: '/users/reset-password',
-    method: 'put',
+    method: 'post',
     data
   })
 }

@@ -81,4 +81,12 @@ public interface CollectionBookMapper extends BaseMapper<CollectionBook> {
      */
     @Select("SELECT COUNT(*) FROM collection_books WHERE is_problem = 1")
     long countProblemBooks();
+
+    /**
+     * 根据条件查询馆藏书目（用于检测）
+     *
+     * @param request 查询条件
+     * @return 馆藏图书列表
+     */
+    List<CollectionBook> selectCollectionBooksByConditions(@Param("request") Object request);
 }

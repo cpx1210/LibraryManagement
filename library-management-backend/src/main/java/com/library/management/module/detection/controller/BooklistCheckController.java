@@ -35,8 +35,7 @@ public class BooklistCheckController {
     @Operation(summary = "上传书单", description = "上传Excel书单文件，创建检测任务并自动开始检测")
     @PostMapping("/upload")
     public Result<BooklistUploadResponse> uploadBooklist(
-            @Parameter(description = "Excel文件", required = true)
-            @RequestParam("file") MultipartFile file) {
+            @Parameter(description = "Excel文件", required = true) @RequestParam("file") MultipartFile file) {
 
         // 获取当前用户信息
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -46,6 +45,26 @@ public class BooklistCheckController {
         log.info("用户 {} 上传书单文件", userName);
 
         BooklistUploadResponse response = booklistCheckService.uploadBooklist(file, userId, userName);
+
+        return Result.success(response);
+    }
+
+    /**
+     * 从馆藏书目创建检测任务
+     */
+    @Operation(summary = "从馆藏书目创建检测任务", description = "将馆藏书目数据作为检测任务进行检测")
+    @PostMapping("/check-from-collection")
+    public Result<BooklistUploadResponse> checkFromCollection(
+            @Parameter(description = "查询条件") @RequestBody(required = false) CollectionBookCheckRequest request) {
+
+        // 获取当前用户信息
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long userId = getCurrentUserId(auth);
+        String userName = getCurrentUserName(auth);
+
+        log.info("用户 {} 从馆藏书目创建检测任务", userName);
+
+        BooklistUploadResponse response = booklistCheckService.checkFromCollection(request, userId, userName);
 
         return Result.success(response);
     }
@@ -80,8 +99,7 @@ public class BooklistCheckController {
     @Operation(summary = "查询任务详情", description = "根据任务ID查询检测任务的详细信息")
     @GetMapping("/tasks/{taskId}")
     public Result<BooklistCheckTaskDTO> getTaskDetail(
-            @Parameter(description = "任务ID", required = true)
-            @PathVariable Long taskId) {
+            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
 
         BooklistCheckTaskDTO task = booklistCheckService.getTaskDetail(taskId);
 
@@ -94,10 +112,8 @@ public class BooklistCheckController {
     @Operation(summary = "查询检测结果明细", description = "查询指定任务的检测结果明细列表")
     @GetMapping("/tasks/{taskId}/details")
     public Result<List<CheckResultDetailDTO>> getCheckDetails(
-            @Parameter(description = "任务ID", required = true)
-            @PathVariable Long taskId,
-            @Parameter(description = "风险等级（可选，用于筛选）")
-            @RequestParam(required = false) String riskLevel) {
+            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId,
+            @Parameter(description = "风险等级（可选，用于筛选）") @RequestParam(required = false) String riskLevel) {
 
         List<CheckResultDetailDTO> details = booklistCheckService.getCheckDetails(taskId, riskLevel);
 
@@ -110,8 +126,7 @@ public class BooklistCheckController {
     @Operation(summary = "导出检测结果", description = "导出检测结果为Excel文件（带颜色标注）")
     @GetMapping("/tasks/{taskId}/export")
     public void exportCheckResult(
-            @Parameter(description = "任务ID", required = true)
-            @PathVariable Long taskId,
+            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId,
             HttpServletResponse response) {
 
         booklistCheckService.exportCheckResult(taskId, response);
@@ -130,10 +145,9 @@ public class BooklistCheckController {
      * 取消检测任务
      */
     @Operation(summary = "取消检测任务", description = "取消正在进行的检测任务")
-    @PutMapping("/tasks/{taskId}/cancel")
+    @PostMapping("/tasks/{taskId}/cancel")
     public Result<Void> cancelTask(
-            @Parameter(description = "任务ID", required = true)
-            @PathVariable Long taskId) {
+            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
 
         booklistCheckService.cancelTask(taskId);
 
@@ -144,10 +158,9 @@ public class BooklistCheckController {
      * 删除检测任务
      */
     @Operation(summary = "删除检测任务", description = "删除指定的检测任务及其检测结果")
-    @DeleteMapping("/tasks/{taskId}")
+    @PostMapping("/tasks/{taskId}/delete")
     public Result<Void> deleteTask(
-            @Parameter(description = "任务ID", required = true)
-            @PathVariable Long taskId) {
+            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
 
         booklistCheckService.deleteTask(taskId);
 

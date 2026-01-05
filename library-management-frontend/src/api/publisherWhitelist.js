@@ -74,8 +74,8 @@ export function createPublisherWhitelist(data) {
  */
 export function updatePublisherWhitelist(data) {
   return request({
-    url: '/publisher-whitelist',
-    method: 'put',
+    url: '/publisher-whitelist/update',
+    method: 'post',
     data
   })
 }
@@ -87,8 +87,8 @@ export function updatePublisherWhitelist(data) {
  */
 export function deletePublisherWhitelist(publisherId) {
   return request({
-    url: `/publisher-whitelist/${publisherId}`,
-    method: 'delete'
+    url: `/publisher-whitelist/delete/${publisherId}`,
+    method: 'post'
   })
 }
 
