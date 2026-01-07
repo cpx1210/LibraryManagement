@@ -106,30 +106,31 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 白名单：这些接口不需要认证，任何人都可以访问
                         .requestMatchers(
-                                "/auth/login",           // 登录接口
-                                "/auth/register",        // 注册接口（如果有）
-                                "/doc.html",             // Knife4j API 文档页面
-                                "/swagger-ui.html",      // Swagger UI 页面
-                                "/swagger-ui/**",        // Swagger UI 静态资源
-                                "/v3/api-docs/**",       // OpenAPI 文档
+                                "/auth/login", // 登录接口
+                                "/auth/register", // 注册接口（如果有）
+                                "/actuator/health", // 健康检查接口（Docker/K8s 探针）
+                                "/actuator/info", // 应用信息接口
+                                "/actuator/**", // Actuator 所有端点（可根据需要调整范围）
+                                "/doc.html", // Knife4j API 文档页面
+                                "/swagger-ui.html", // Swagger UI 页面
+                                "/swagger-ui/**", // Swagger UI 静态资源
+                                "/v3/api-docs/**", // OpenAPI 文档
                                 "/swagger-resources/**", // Swagger 资源
-                                "/webjars/**",           // Swagger 依赖的 webjars
-                                "/favicon.ico",          // 网站图标
-                                "/error"                 // 错误页面
+                                "/webjars/**", // Swagger 依赖的 webjars
+                                "/favicon.ico", // 网站图标
+                                "/error" // 错误页面
                         ).permitAll()
 
                         // 其他所有接口都需要认证
                         // 说明：没有在白名单中的接口，必须携带有效的 JWT Token 才能访问
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
 
                 // ========== 4. 配置会话管理策略 ==========
                 // 说明：设置为 STATELESS（无状态）
                 // 原因：JWT 是无状态的，不需要服务器保存 Session
                 // 好处：可以水平扩展，多台服务器之间不需要共享 Session
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // ========== 5. 添加 JWT 认证过滤器 ==========
                 // 说明：将我们自定义的 JwtAuthenticationFilter 添加到 Spring Security 过滤器链
@@ -145,6 +146,7 @@ public class SecurityConfig {
      *
      * CORS (Cross-Origin Resource Sharing) 跨域资源共享
      * 说明：浏览器的同源策略限制了不同域名之间的请求，需要配置 CORS 允许跨域
+     * 
      * @return CorsConfigurationSource CORS 配置源
      */
     @Bean
