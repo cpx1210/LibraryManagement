@@ -29,7 +29,8 @@ export function getCollectionBookList(params) {
     return request({
         url: '/collection-books',
         method: 'get',
-        params
+        params,
+        timeout: 0
     })
 }
 

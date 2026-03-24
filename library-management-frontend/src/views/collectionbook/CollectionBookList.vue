@@ -37,16 +37,19 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button type="primary" :loading="loading" @click="handleSearch">
             <el-icon><Search /></el-icon>
             搜索
           </el-button>
-          <el-button @click="handleReset">
+          <el-button :disabled="loading" @click="handleReset">
             <el-icon><Refresh /></el-icon>
             重置
           </el-button>
         </el-form-item>
       </el-form>
+      <div class="search-tip">
+        大数据检索可能需要较长时间，检索期间页面会持续等待结果返回，不会因为前端 10 秒超时而中断。
+      </div>
     </el-card>
 
     <!-- 操作按钮 -->
@@ -416,7 +419,7 @@ const loadData = async () => {
     }
   } catch (error) {
     console.error('加载数据失败:', error)
-    ElMessage.error('加载数据失败')
+    ElMessage.error(error.message || '加载数据失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -734,6 +737,12 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.search-tip {
+  margin-top: 8px;
+  color: #909399;
+  font-size: 13px;
 }
 
 .table-card {
