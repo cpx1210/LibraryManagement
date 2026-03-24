@@ -4,11 +4,6 @@ import request from '@/utils/request'
  * 书单检测 API 接口
  */
 
-/**
- * 上传书单文件
- * @param {File} file - Excel 文件
- * @returns {Promise}
- */
 export function uploadBooklist(file) {
   const formData = new FormData()
   formData.append('file', file)
@@ -23,16 +18,6 @@ export function uploadBooklist(file) {
   })
 }
 
-/**
- * 分页查询检测任务列表
- * @param {Object} params - 查询参数
- * @param {string} params.taskName - 任务名称（模糊查询）
- * @param {string} params.status - 任务状态
- * @param {number} params.submittedBy - 提交人ID
- * @param {number} params.pageNum - 页码
- * @param {number} params.pageSize - 每页大小
- * @returns {Promise}
- */
 export function getTaskList(params) {
   return request({
     url: '/booklist-check/tasks',
@@ -41,11 +26,6 @@ export function getTaskList(params) {
   })
 }
 
-/**
- * 查询检测任务详情
- * @param {number} taskId - 任务ID
- * @returns {Promise}
- */
 export function getTaskDetail(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}`,
@@ -53,12 +33,6 @@ export function getTaskDetail(taskId) {
   })
 }
 
-/**
- * 查询检测结果明细列表
- * @param {number} taskId - 任务ID
- * @param {string} riskLevel - 风险等级（可选）
- * @returns {Promise}
- */
 export function getCheckDetails(taskId, riskLevel) {
   return request({
     url: `/booklist-check/tasks/${taskId}/details`,
@@ -67,11 +41,14 @@ export function getCheckDetails(taskId, riskLevel) {
   })
 }
 
-/**
- * 导出检测结果
- * @param {number} taskId - 任务ID
- * @returns {Promise}
- */
+export function getCheckDetailsPage(taskId, params) {
+  return request({
+    url: `/booklist-check/tasks/${taskId}/details/page`,
+    method: 'get',
+    params
+  })
+}
+
 export function exportCheckResult(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}/export`,
@@ -80,10 +57,6 @@ export function exportCheckResult(taskId) {
   })
 }
 
-/**
- * 下载检测模板
- * @returns {Promise}
- */
 export function downloadTemplate() {
   return request({
     url: '/booklist-check/template',
@@ -92,11 +65,6 @@ export function downloadTemplate() {
   })
 }
 
-/**
- * 取消检测任务
- * @param {number} taskId - 任务ID
- * @returns {Promise}
- */
 export function cancelTask(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}/cancel`,
@@ -104,11 +72,6 @@ export function cancelTask(taskId) {
   })
 }
 
-/**
- * 删除检测任务
- * @param {number} taskId - 任务ID
- * @returns {Promise}
- */
 export function deleteTask(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}/delete`,

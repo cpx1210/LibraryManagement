@@ -313,6 +313,8 @@ CREATE TABLE collection_books (
     INDEX idx_cb_is_problem (is_problem),
     INDEX idx_cb_batch (batch),
     INDEX idx_cb_is_stored (is_stored),
+    INDEX idx_cb_problem_create_barcode (is_problem, create_time DESC, barcode DESC),
+    INDEX idx_cb_problem_branch_create_barcode (is_problem, branch_library, create_time DESC, barcode DESC),
     
     -- 外键约束
     CONSTRAINT fk_cb_created_by FOREIGN KEY (created_by) REFERENCES sys_user(user_id) ON UPDATE CASCADE,

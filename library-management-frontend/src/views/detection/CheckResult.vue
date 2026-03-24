@@ -1,6 +1,5 @@
 <template>
   <div class="check-result-container">
-    <!-- 任务信息 -->
     <el-card class="task-info-card">
       <template #header>
         <div class="card-header">
@@ -8,7 +7,7 @@
           <div class="header-actions">
             <el-button type="success" @click="handleExport">
               <el-icon><Download /></el-icon>
-              导出Excel报告
+              导出 Excel 报告
             </el-button>
             <el-button @click="handleBack">
               <el-icon><Back /></el-icon>
@@ -46,7 +45,6 @@
       </el-descriptions>
     </el-card>
 
-    <!-- 统计概览 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :span="6">
         <el-card class="stat-card danger-card">
@@ -102,12 +100,14 @@
       </el-col>
     </el-row>
 
-    <!-- 检测结果列表 -->
     <el-card class="result-list-card">
       <template #header>
-        <div class="card-header">
+        <div class="card-header result-header">
           <span>检测结果明细</span>
           <div class="filter-actions">
+            <el-checkbox v-model="onlyIssue" @change="handleFilterChange">
+              只看问题项
+            </el-checkbox>
             <el-radio-group v-model="riskFilter" @change="handleFilterChange">
               <el-radio-button label="">全部</el-radio-button>
               <el-radio-button label="high">高风险</el-radio-button>
@@ -118,6 +118,10 @@
         </div>
       </template>
 
+      <div class="table-tip">
+        当前结果采用服务端分页加载，避免一次性返回超大数据导致页面卡顿。
+      </div>
+
       <el-table
         v-loading="loading"
         :data="resultList"
@@ -125,35 +129,43 @@
         :row-class-name="getRowClassName"
         style="width: 100%"
       >
-        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column label="序号" width="80" align="center">
+          <template #default="{ $index }">
+            {{ (pagination.pageNum - 1) * pagination.pageSize + $index + 1 }}
+          </template>
+        </el-table-column>
 
         <el-table-column prop="bookName" label="书名" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="author" label="作者" width="140" show-overflow-tooltip />
+        <el-table-column prop="publisher" label="出版社" width="180" show-overflow-tooltip />
+        <el-table-column prop="isbn" label="ISBN" width="160" />
 
-        <el-table-column prop="author" label="作者" width="120" show-overflow-tooltip />
-
-        <el-table-column prop="publisher" label="出版社" width="150" show-overflow-tooltip />
-
-        <el-table-column prop="isbn" label="ISBN" width="140" />
-
-        <el-table-column label="检测结果" width="120" align="center">
+        <el-table-column label="检测结果" width="180" align="center">
           <template #default="{ row }">
             <div class="result-tags">
               <el-tag v-if="row.hitSensitive" type="danger" size="small">敏感词</el-tag>
               <el-tag v-if="row.hitProblemBook" type="warning" size="small">问题书目</el-tag>
               <el-tag v-if="!row.isWhitelistPublisher" type="info" size="small">非白名单</el-tag>
+              <el-tag
+                v-if="row.isWhitelistPublisher && !row.hitSensitive && !row.hitProblemBook"
+                type="success"
+                size="small"
+              >
+                正常
+              </el-tag>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="riskLevel" label="风险等级" width="100" align="center">
+        <el-table-column prop="riskLevel" label="风险等级" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="getRiskLevelType(row.riskLevel)">
-              {{ row.riskLevelText }}
+              {{ row.riskLevelText || '-' }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="sensitiveWords" label="敏感词详情" min-width="250">
+        <el-table-column prop="sensitiveWords" label="敏感词详情" min-width="260">
           <template #default="{ row }">
             <div v-if="row.sensitiveHitDetails && row.sensitiveHitDetails.length > 0" class="sensitive-details">
               <el-tooltip
@@ -163,7 +175,7 @@
                 placement="top"
               >
                 <el-tag type="danger" size="small" class="sensitive-tag">
-                  {{ detail.fieldName }}：{{ detail.keyword }}
+                  {{ detail.fieldName }}: {{ detail.keyword }}
                 </el-tag>
               </el-tooltip>
             </div>
@@ -174,139 +186,141 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="remark" label="备注" min-width="300" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" min-width="320" show-overflow-tooltip />
       </el-table>
+
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="pagination.pageNum"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          :page-sizes="[20, 50, 100, 200]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  Download,
   Back,
-  Warning,
-  WarnTriangleFilled,
+  Document,
+  Download,
   InfoFilled,
-  Document
+  Warning,
+  WarnTriangleFilled
 } from '@element-plus/icons-vue'
 import {
-  getTaskDetail,
-  getCheckDetails,
-  exportCheckResult
+  exportCheckResult,
+  getCheckDetailsPage,
+  getTaskDetail
 } from '@/api/detection'
 
 const router = useRouter()
 const route = useRoute()
 
-// 任务ID
 const taskId = ref(route.params.taskId)
-
-// 任务信息
 const taskInfo = ref(null)
-
-// 风险等级筛选
-const riskFilter = ref('')
-
-// 检测结果列表
 const resultList = ref([])
 const loading = ref(false)
+const riskFilter = ref('')
+const onlyIssue = ref(true)
 
-/**
- * 加载任务详情
- */
+const pagination = ref({
+  pageNum: 1,
+  pageSize: 50,
+  total: 0
+})
+
 const loadTaskDetail = async () => {
   try {
     const res = await getTaskDetail(taskId.value)
-
     if (res.code === 200) {
       taskInfo.value = res.data
     } else {
       ElMessage.error(res.message || '加载任务详情失败')
     }
   } catch (error) {
-    console.error('加载任务详情失败：', error)
+    console.error('加载任务详情失败:', error)
     ElMessage.error('加载任务详情失败，请重试')
   }
 }
 
-/**
- * 加载检测结果明细
- */
 const loadCheckDetails = async () => {
   loading.value = true
 
   try {
-    const res = await getCheckDetails(taskId.value, riskFilter.value)
+    const res = await getCheckDetailsPage(taskId.value, {
+      pageNum: pagination.value.pageNum,
+      pageSize: pagination.value.pageSize,
+      riskLevel: riskFilter.value || undefined,
+      hasIssue: onlyIssue.value
+    })
 
     if (res.code === 200) {
-      resultList.value = res.data || []
+      resultList.value = res.data.records || []
+      pagination.value.total = res.data.total || 0
     } else {
       ElMessage.error(res.message || '加载检测结果失败')
     }
   } catch (error) {
-    console.error('加载检测结果失败：', error)
+    console.error('加载检测结果失败:', error)
     ElMessage.error('加载检测结果失败，请重试')
   } finally {
     loading.value = false
   }
 }
 
-/**
- * 筛选变化
- */
 const handleFilterChange = () => {
+  pagination.value.pageNum = 1
   loadCheckDetails()
 }
 
-/**
- * 导出结果
- */
+const handleSizeChange = () => {
+  pagination.value.pageNum = 1
+  loadCheckDetails()
+}
+
+const handlePageChange = () => {
+  loadCheckDetails()
+}
+
 const handleExport = async () => {
   try {
     const blob = await exportCheckResult(taskId.value)
-
-    // 创建下载链接
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = `检测结果_${taskId.value}.xlsx`
     link.click()
-
-    // 释放URL对象
     window.URL.revokeObjectURL(url)
-
     ElMessage.success('导出成功')
   } catch (error) {
-    console.error('导出失败：', error)
+    console.error('导出失败:', error)
     ElMessage.error('导出失败，请重试')
   }
 }
 
-/**
- * 返回
- */
 const handleBack = () => {
   router.back()
 }
 
-/**
- * 获取行类名（根据风险等级）
- */
 const getRowClassName = ({ row }) => {
   if (row.riskLevel === 'high') {
     return 'high-risk-row'
-  } else if (row.riskLevel === 'medium') {
+  }
+  if (row.riskLevel === 'medium') {
     return 'medium-risk-row'
   }
   return ''
 }
 
-/**
- * 获取状态类型
- */
 const getStatusType = (status) => {
   const typeMap = {
     pending: 'info',
@@ -318,9 +332,6 @@ const getStatusType = (status) => {
   return typeMap[status] || 'info'
 }
 
-/**
- * 获取风险等级类型
- */
 const getRiskLevelType = (riskLevel) => {
   const typeMap = {
     high: 'danger',
@@ -330,38 +341,32 @@ const getRiskLevelType = (riskLevel) => {
   return typeMap[riskLevel] || 'info'
 }
 
-/**
- * 格式化耗时
- */
 const formatDuration = (seconds) => {
   if (seconds < 60) {
-    return `${seconds}秒`
-  } else if (seconds < 3600) {
+    return `${seconds} 秒`
+  }
+  if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60)
     const secs = seconds % 60
-    return `${minutes}分${secs}秒`
-  } else {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours}时${minutes}分`
+    return `${minutes} 分 ${secs} 秒`
   }
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return `${hours} 小时 ${minutes} 分`
 }
 
-/**
- * 格式化敏感词详情（用于 tooltip 显示）
- */
 const formatSensitiveDetail = (detail) => {
-  if (!detail) return ''
-  let text = `${detail.fieldName}匹配到关键词：${detail.keyword}`
+  if (!detail) {
+    return ''
+  }
+
+  let text = `${detail.fieldName} 匹配到关键词: ${detail.keyword}`
   if (detail.alertMessage) {
-    text += `（原因：${detail.alertMessage}）`
+    text += `（原因: ${detail.alertMessage}）`
   }
   return text
 }
 
-/**
- * 组件挂载
- */
 onMounted(() => {
   loadTaskDetail()
   loadCheckDetails()
@@ -413,10 +418,6 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.stat-card {
-  cursor: default;
-}
-
 .stat-content {
   display: flex;
   align-items: center;
@@ -433,9 +434,9 @@ onMounted(() => {
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #909399;
   margin-bottom: 8px;
+  color: #909399;
+  font-size: 14px;
 }
 
 .stat-value {
@@ -443,34 +444,22 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.danger-card .stat-icon {
-  color: #f56c6c;
-}
-
+.danger-card .stat-icon,
 .danger-card .stat-value {
   color: #f56c6c;
 }
 
-.warning-card .stat-icon {
-  color: #e6a23c;
-}
-
+.warning-card .stat-icon,
 .warning-card .stat-value {
   color: #e6a23c;
 }
 
-.info-card .stat-icon {
-  color: #909399;
-}
-
+.info-card .stat-icon,
 .info-card .stat-value {
   color: #909399;
 }
 
-.primary-card .stat-icon {
-  color: #409eff;
-}
-
+.primary-card .stat-icon,
 .primary-card .stat-value {
   color: #409eff;
 }
@@ -479,9 +468,21 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.result-header {
+  gap: 16px;
+}
+
 .filter-actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.table-tip {
+  margin-bottom: 16px;
+  color: #909399;
+  font-size: 13px;
 }
 
 .result-tags {
@@ -503,11 +504,16 @@ onMounted(() => {
 }
 
 .sensitive-tag {
-  cursor: pointer;
   margin: 2px;
+  cursor: pointer;
 }
 
-/* 表格行背景色 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 :deep(.high-risk-row),
 :deep(.high-risk-row .el-table__cell) {
   background-color: #fef0f0 !important;

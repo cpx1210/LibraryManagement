@@ -83,6 +83,9 @@ CREATE INDEX idx_cb_batch ON collection_books(batch);
 
 -- 入库状态索引
 CREATE INDEX idx_cb_is_stored ON collection_books(is_stored);
+CREATE INDEX idx_cb_problem_create_barcode ON collection_books(is_problem, create_time DESC, barcode DESC);
+CREATE INDEX idx_cb_problem_branch_create_barcode
+    ON collection_books(is_problem, branch_library, create_time DESC, barcode DESC);
 
 -- =====================================================
 -- 说明

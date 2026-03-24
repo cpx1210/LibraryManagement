@@ -2,20 +2,30 @@ package com.library.management.module.detection.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.library.management.common.result.Result;
-import com.library.management.module.detection.dto.*;
+import com.library.management.module.detection.dto.BooklistCheckTaskDTO;
+import com.library.management.module.detection.dto.BooklistUploadResponse;
+import com.library.management.module.detection.dto.CheckResultDetailDTO;
+import com.library.management.module.detection.dto.CollectionBookCheckRequest;
+import com.library.management.module.detection.dto.TaskQueryRequest;
 import com.library.management.module.detection.service.BooklistCheckService;
+import com.library.management.module.detection.service.impl.CollectionBookDetectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 书单检测 Controller
@@ -29,15 +39,17 @@ public class BooklistCheckController {
     @Resource
     private BooklistCheckService booklistCheckService;
 
+    @Resource
+    private CollectionBookDetectionService collectionBookDetectionService;
+
     /**
      * 上传书单文件并创建检测任务
      */
-    @Operation(summary = "上传书单", description = "上传Excel书单文件，创建检测任务并自动开始检测")
+    @Operation(summary = "上传书单", description = "上传 Excel 书单文件，创建检测任务并自动开始检测")
     @PostMapping("/upload")
     public Result<BooklistUploadResponse> uploadBooklist(
-            @Parameter(description = "Excel文件", required = true) @RequestParam("file") MultipartFile file) {
+            @Parameter(description = "Excel 文件", required = true) @RequestParam("file") MultipartFile file) {
 
-        // 获取当前用户信息
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long userId = getCurrentUserId(auth);
         String userName = getCurrentUserName(auth);
@@ -45,7 +57,6 @@ public class BooklistCheckController {
         log.info("用户 {} 上传书单文件", userName);
 
         BooklistUploadResponse response = booklistCheckService.uploadBooklist(file, userId, userName);
-
         return Result.success(response);
     }
 
@@ -57,15 +68,13 @@ public class BooklistCheckController {
     public Result<BooklistUploadResponse> checkFromCollection(
             @Parameter(description = "查询条件") @RequestBody(required = false) CollectionBookCheckRequest request) {
 
-        // 获取当前用户信息
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long userId = getCurrentUserId(auth);
         String userName = getCurrentUserName(auth);
 
         log.info("用户 {} 从馆藏书目创建检测任务", userName);
 
-        BooklistUploadResponse response = booklistCheckService.checkFromCollection(request, userId, userName);
-
+        BooklistUploadResponse response = collectionBookDetectionService.createTask(request, userId, userName);
         return Result.success(response);
     }
 
@@ -77,7 +86,7 @@ public class BooklistCheckController {
     public Result<IPage<BooklistCheckTaskDTO>> queryTasks(
             @Parameter(description = "任务名称（模糊查询）") @RequestParam(required = false) String taskName,
             @Parameter(description = "任务状态") @RequestParam(required = false) String status,
-            @Parameter(description = "提交人ID") @RequestParam(required = false) Long submittedBy,
+            @Parameter(description = "提交人 ID") @RequestParam(required = false) Long submittedBy,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Integer pageSize) {
 
@@ -89,20 +98,18 @@ public class BooklistCheckController {
         request.setPageSize(pageSize);
 
         IPage<BooklistCheckTaskDTO> page = booklistCheckService.queryTasks(request);
-
         return Result.success(page);
     }
 
     /**
      * 查询检测任务详情
      */
-    @Operation(summary = "查询任务详情", description = "根据任务ID查询检测任务的详细信息")
+    @Operation(summary = "查询任务详情", description = "根据任务 ID 查询检测任务的详细信息")
     @GetMapping("/tasks/{taskId}")
     public Result<BooklistCheckTaskDTO> getTaskDetail(
-            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId) {
 
         BooklistCheckTaskDTO task = booklistCheckService.getTaskDetail(taskId);
-
         return Result.success(task);
     }
 
@@ -112,21 +119,45 @@ public class BooklistCheckController {
     @Operation(summary = "查询检测结果明细", description = "查询指定任务的检测结果明细列表")
     @GetMapping("/tasks/{taskId}/details")
     public Result<List<CheckResultDetailDTO>> getCheckDetails(
-            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId,
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId,
             @Parameter(description = "风险等级（可选，用于筛选）") @RequestParam(required = false) String riskLevel) {
 
         List<CheckResultDetailDTO> details = booklistCheckService.getCheckDetails(taskId, riskLevel);
-
         return Result.success(details);
+    }
+
+    /**
+     * 分页查询检测结果明细列表
+     */
+    @Operation(summary = "分页查询检测结果明细", description = "分页查询指定任务的检测结果明细列表，避免一次性返回大量数据")
+    @GetMapping("/tasks/{taskId}/details/page")
+    public Result<IPage<CheckResultDetailDTO>> getCheckDetailsPage(
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId,
+            @Parameter(description = "风险等级（可选，用于筛选）") @RequestParam(required = false) String riskLevel,
+            @Parameter(description = "是否只看问题数据") @RequestParam(defaultValue = "true") Boolean hasIssue,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer pageNum,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "50") Integer pageSize) {
+
+        int safePageNum = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int safePageSize = pageSize == null ? 50 : Math.min(Math.max(pageSize, 1), 200);
+
+        IPage<CheckResultDetailDTO> page = booklistCheckService.getCheckDetailsPage(
+                taskId,
+                riskLevel,
+                hasIssue,
+                safePageNum,
+                safePageSize);
+
+        return Result.success(page);
     }
 
     /**
      * 导出检测结果
      */
-    @Operation(summary = "导出检测结果", description = "导出检测结果为Excel文件（带颜色标注）")
+    @Operation(summary = "导出检测结果", description = "导出检测结果为 Excel 文件（带颜色标注）")
     @GetMapping("/tasks/{taskId}/export")
     public void exportCheckResult(
-            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId,
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId,
             HttpServletResponse response) {
 
         booklistCheckService.exportCheckResult(taskId, response);
@@ -135,7 +166,7 @@ public class BooklistCheckController {
     /**
      * 下载检测模板
      */
-    @Operation(summary = "下载检测模板", description = "下载书单检测Excel模板（含示例数据）")
+    @Operation(summary = "下载检测模板", description = "下载书单检测 Excel 模板（含示例数据）")
     @GetMapping("/template")
     public void downloadTemplate(HttpServletResponse response) {
         booklistCheckService.downloadTemplate(response);
@@ -147,10 +178,9 @@ public class BooklistCheckController {
     @Operation(summary = "取消检测任务", description = "取消正在进行的检测任务")
     @PostMapping("/tasks/{taskId}/cancel")
     public Result<Void> cancelTask(
-            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId) {
 
         booklistCheckService.cancelTask(taskId);
-
         return Result.success();
     }
 
@@ -160,25 +190,17 @@ public class BooklistCheckController {
     @Operation(summary = "删除检测任务", description = "删除指定的检测任务及其检测结果")
     @PostMapping("/tasks/{taskId}/delete")
     public Result<Void> deleteTask(
-            @Parameter(description = "任务ID", required = true) @PathVariable Long taskId) {
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId) {
 
         booklistCheckService.deleteTask(taskId);
-
         return Result.success();
     }
 
-    // ==================== 私有方法 ====================
-
-    /**
-     * 获取当前用户ID
-     */
     private Long getCurrentUserId(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
-            return 1L; // 默认用户ID（开发环境）
+            return 1L;
         }
 
-        // 从 JWT Token 中获取用户ID
-        // 实际实现需要根据项目的认证方式调整
         try {
             return Long.parseLong(auth.getName());
         } catch (NumberFormatException e) {
@@ -186,16 +208,11 @@ public class BooklistCheckController {
         }
     }
 
-    /**
-     * 获取当前用户名
-     */
     private String getCurrentUserName(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
-            return "系统管理员"; // 默认用户名（开发环境）
+            return "系统管理员";
         }
 
-        // 从 JWT Token 中获取用户名
-        // 实际实现需要根据项目的认证方式调整
         return auth.getName();
     }
 }

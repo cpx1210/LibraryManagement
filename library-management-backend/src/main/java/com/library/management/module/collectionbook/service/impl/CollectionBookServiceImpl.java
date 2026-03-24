@@ -44,11 +44,16 @@ public class CollectionBookServiceImpl implements CollectionBookService {
 
     @Override
     public Page<CollectionBookDTO> queryBooks(CollectionBookQueryRequest request) {
+        if (useProblemAndBranchFastPath(request)) {
+            return queryBooksByProblemAndBranch(request);
+        }
         // 1. 创建分页对象
         Page<CollectionBook> page = new Page<>(request.getPageNum(), request.getPageSize());
 
         // 2. 构建查询条件
         LambdaQueryWrapper<CollectionBook> queryWrapper = new LambdaQueryWrapper<>();
+        boolean includeProblemReason = Integer.valueOf(1).equals(request.getIsProblem());
+        selectListColumns(queryWrapper, includeProblemReason);
 
         // 条码精确查询
         if (StringUtils.hasText(request.getBarcode())) {
@@ -252,6 +257,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     @Override
     public List<CollectionBookDTO> getAllNormalBooks() {
         LambdaQueryWrapper<CollectionBook> queryWrapper = new LambdaQueryWrapper<>();
+        selectListColumns(queryWrapper, false);
         queryWrapper.eq(CollectionBook::getIsProblem, 0);
         queryWrapper.orderByDesc(CollectionBook::getCreateTime);
         List<CollectionBook> books = collectionBookMapper.selectList(queryWrapper);
@@ -261,6 +267,7 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     @Override
     public List<CollectionBookDTO> getAllProblemBooks() {
         LambdaQueryWrapper<CollectionBook> queryWrapper = new LambdaQueryWrapper<>();
+        selectListColumns(queryWrapper, true);
         queryWrapper.eq(CollectionBook::getIsProblem, 1);
         queryWrapper.orderByDesc(CollectionBook::getCreateTime);
         List<CollectionBook> books = collectionBookMapper.selectList(queryWrapper);
@@ -474,6 +481,11 @@ public class CollectionBookServiceImpl implements CollectionBookService {
     /**
      * Entity 转 DTO
      */
+    private void selectListColumns(LambdaQueryWrapper<CollectionBook> queryWrapper, boolean includeProblemReason) {
+        queryWrapper.select(CollectionBook.class,
+                field -> includeProblemReason || !"problem_reason".equals(field.getColumn()));
+    }
+
     private CollectionBookDTO convertToDTO(CollectionBook book) {
         CollectionBookDTO dto = new CollectionBookDTO();
         BeanUtils.copyProperties(book, dto);
@@ -538,5 +550,43 @@ public class CollectionBookServiceImpl implements CollectionBookService {
         excelDTO.setIsProblemStr(dto.getIsProblem() != null && dto.getIsProblem() == 1 ? "是" : "否");
 
         return excelDTO;
+    }
+    /**
+     * is_problem + branch_library 的简单结构化筛选走定制 SQL，
+     * 避免 MySQL 优化器误选到低效索引。
+     */
+    private Page<CollectionBookDTO> queryBooksByProblemAndBranch(CollectionBookQueryRequest request) {
+        long pageNum = request.getPageNum() == null || request.getPageNum() < 1 ? 1L : request.getPageNum();
+        long pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 10L : request.getPageSize();
+        long offset = (pageNum - 1) * pageSize;
+
+        long total = collectionBookMapper.countByProblemAndBranch(request.getIsProblem(), request.getBranchLibrary());
+        List<CollectionBook> books = collectionBookMapper.selectPageByProblemAndBranch(
+                request.getIsProblem(),
+                request.getBranchLibrary(),
+                offset,
+                pageSize);
+
+        Page<CollectionBookDTO> dtoPage = new Page<>(pageNum, pageSize, total);
+        dtoPage.setRecords(books.stream().map(this::convertToDTO).collect(Collectors.toList()));
+        return dtoPage;
+    }
+
+    private boolean useProblemAndBranchFastPath(CollectionBookQueryRequest request) {
+        return request != null
+                && request.getIsProblem() != null
+                && StringUtils.hasText(request.getBranchLibrary())
+                && !StringUtils.hasText(request.getBarcode())
+                && !StringUtils.hasText(request.getBookName())
+                && !StringUtils.hasText(request.getAuthor())
+                && !StringUtils.hasText(request.getIsbn())
+                && !StringUtils.hasText(request.getPublisher())
+                && !StringUtils.hasText(request.getPublishYear())
+                && !StringUtils.hasText(request.getCallNumber())
+                && !StringUtils.hasText(request.getBatch())
+                && request.getIsStored() == null
+                && !StringUtils.hasText(request.getLibraryLocation())
+                && request.getDuplicateFlag() == null
+                && !StringUtils.hasText(request.getProblemType());
     }
 }

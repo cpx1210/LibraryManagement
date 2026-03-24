@@ -15,14 +15,14 @@ import java.util.concurrent.ThreadPoolExecutor;
  *
  * 功能说明：
  * 1. 配置异步任务线程池
- * 2. 控制并发检测任务数量（最大 5 个）
+ * 2. 控制并发检测任务数量，避免全库检测把数据库和应用线程池打满
  * 3. 处理异步任务异常
  *
  * 线程池参数：
- * - 核心线程数：3
- * - 最大线程数：5（同时最多 5 个检测任务）
- * - 队列容量：10（最多排队 10 个任务）
- * - 拒绝策略：CallerRunsPolicy（队列满时由调用线程执行）
+ * - 核心线程数：2
+ * - 最大线程数：2（同时最多 2 个检测任务）
+ * - 队列容量：100（任务进入排队，避免挤占请求线程）
+ * - 拒绝策略：AbortPolicy（队列满时快速失败，而不是让请求线程同步执行）
  */
 @Slf4j
 @Configuration
@@ -40,14 +40,14 @@ public class AsyncConfig implements AsyncConfigurer {
 
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-        // 核心线程数：系统启动时创建的线程数
-        executor.setCorePoolSize(3);
+        // 全库检测是长任务，这里主动限制并发，优先保证系统稳定性。
+        executor.setCorePoolSize(2);
 
-        // 最大线程数：系统最多可以创建的线程数（控制并发检测任务数量）
-        executor.setMaxPoolSize(5);
+        // 核心数和最大线程数保持一致，避免在高峰期突然放大并发。
+        executor.setMaxPoolSize(2);
 
-        // 队列容量：核心线程都在忙时，新任务会进入队列等待
-        executor.setQueueCapacity(10);
+        // 允许检测任务在后台排队，但不让排队失败时回退到请求线程执行。
+        executor.setQueueCapacity(100);
 
         // 线程名称前缀：便于日志追踪
         executor.setThreadNamePrefix("BooklistCheck-");
@@ -55,9 +55,8 @@ public class AsyncConfig implements AsyncConfigurer {
         // 线程空闲时间：超过核心线程数的线程，空闲60秒后会被销毁
         executor.setKeepAliveSeconds(60);
 
-        // 拒绝策略：队列满时，由调用线程执行任务
-        // CallerRunsPolicy：不丢弃任务，而是由调用线程自己执行
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // 拒绝策略：队列满时快速拒绝，由上层统一回写任务失败原因。
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
 
         // 等待所有任务完成后再关闭线程池
         executor.setWaitForTasksToCompleteOnShutdown(true);

@@ -612,6 +612,7 @@ const handleExport = async () => {
 // 检测书单
 const router = useRouter()
 const handleCheckBooks = async () => {
+  let loadingInstance = null
   try {
     await ElMessageBox.confirm(
       '确定要将当前筛选条件下的馆藏书目提交检测吗？',
@@ -629,7 +630,7 @@ const handleCheckBooks = async () => {
       ...searchForm
     }
 
-    const loadingInstance = ElMessage({
+    loadingInstance = ElMessage({
       message: '正在创建检测任务...',
       type: 'info',
       duration: 0
@@ -641,25 +642,15 @@ const handleCheckBooks = async () => {
 
     if (response.code === 200) {
       ElMessage.success(`检测任务创建成功！共检测 ${response.data.totalBooks} 本书目`)
-      
-      // 跳转到检测历史页面
-      await ElMessageBox.confirm(
-        '检测任务已创建，是否前往查看检测结果？',
-        '提示',
-        {
-          confirmButtonText: '查看结果',
-          cancelButtonText: '稍后查看',
-          type: 'success'
-        }
-      )
-      
-      // 跳转到检测历史页面，并传递taskId
+
+      // 直接跳转到检测进度页，让用户第一时间看到实时任务进度。
       router.push({
-        path: '/detection/history',
+        path: '/detection/check',
         query: { taskId: response.data.taskId }
       })
     }
   } catch (error) {
+    loadingInstance?.close()
     if (error !== 'cancel') {
       console.error('创建检测任务失败:', error)
       ElMessage.error(error.message || '创建检测任务失败')

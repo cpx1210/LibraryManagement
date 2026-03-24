@@ -66,6 +66,19 @@ public interface BooklistCheckService {
     List<CheckResultDetailDTO> getCheckDetails(Long taskId, String riskLevel);
 
     /**
+     * 分页查询检测结果明细列表
+     *
+     * @param taskId    任务ID
+     * @param riskLevel 风险等级（可选，用于筛选）
+     * @param hasIssue  是否只看问题数据（可选）
+     * @param pageNum   页码
+     * @param pageSize  每页大小
+     * @return 分页结果
+     */
+    IPage<CheckResultDetailDTO> getCheckDetailsPage(Long taskId, String riskLevel, Boolean hasIssue, Integer pageNum,
+            Integer pageSize);
+
+    /**
      * 导出检测结果（Excel，带颜色标注）
      *
      * @param taskId   任务ID

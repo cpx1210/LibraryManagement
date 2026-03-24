@@ -1,11 +1,10 @@
 <template>
   <div class="booklist-check-container">
-    <!-- 页面标题 -->
     <el-card class="header-card">
       <div class="header-content">
         <div>
           <h2>书单检测</h2>
-          <p class="description">上传书单Excel文件，系统将自动检测敏感词、问题书目和白名单出版社</p>
+          <p class="description">支持上传 Excel 书单检测，也支持从馆藏发起分批检测任务并实时查看执行进度。</p>
         </div>
         <el-button type="primary" @click="handleDownloadTemplate">
           <el-icon><Download /></el-icon>
@@ -14,7 +13,6 @@
       </div>
     </el-card>
 
-    <!-- 上传区域 -->
     <el-card class="upload-card">
       <template #header>
         <div class="card-header">
@@ -34,14 +32,12 @@
         :limit="1"
         accept=".xlsx,.xls"
       >
-        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
         <div class="el-upload__text">
-          将Excel文件拖到此处，或<em>点击上传</em>
+          将 Excel 文件拖到此处，或<em>点击上传</em>
         </div>
         <template #tip>
-          <div class="el-upload__tip">
-            只支持 .xlsx 或 .xls 格式的 Excel 文件，文件大小不超过 50MB
-          </div>
+          <div class="el-upload__tip">仅支持 `.xlsx/.xls` 文件，大小不超过 50MB</div>
         </template>
       </el-upload>
 
@@ -56,17 +52,12 @@
           <el-icon><Upload /></el-icon>
           开始检测
         </el-button>
-        <el-button
-          size="large"
-          :disabled="fileList.length === 0"
-          @click="handleClearFile"
-        >
+        <el-button size="large" :disabled="fileList.length === 0" @click="handleClearFile">
           清空文件
         </el-button>
       </div>
     </el-card>
 
-    <!-- 检测进度 -->
     <el-card v-if="currentTask" class="progress-card">
       <template #header>
         <div class="card-header">
@@ -80,50 +71,71 @@
       <div class="task-info">
         <el-descriptions :column="2" border>
           <el-descriptions-item label="任务名称">{{ currentTask.taskName }}</el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ currentTask.submitTime }}</el-descriptions-item>
-          <el-descriptions-item label="总书目数">{{ currentTask.totalBooks }}</el-descriptions-item>
-          <el-descriptions-item label="任务状态">
-            <el-tag :type="getStatusType(currentTask.status)">
-              {{ currentTask.statusText }}
-            </el-tag>
+          <el-descriptions-item label="任务类型">{{ currentTask.taskType || '书单检测' }}</el-descriptions-item>
+          <el-descriptions-item label="提交时间">{{ currentTask.submitTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="总书目数">{{ formatNumber(currentTask.totalBooks) }}</el-descriptions-item>
+          <el-descriptions-item label="已处理">{{ formatNumber(currentTask.processedBooks) }}</el-descriptions-item>
+          <el-descriptions-item label="当前批次">
+            {{ formatBatch(currentTask.currentBatch, currentTask.totalBatches) }}
           </el-descriptions-item>
         </el-descriptions>
 
-        <!-- 进度条 -->
-        <div v-if="currentTask.status === 'processing'" class="progress-bar">
+        <div class="progress-panel">
+          <div class="progress-meta">
+            <span>{{ getProgressText(currentTask) }}</span>
+            <span>{{ currentTask.progressPercent || 0 }}%</span>
+          </div>
           <el-progress
-            :percentage="100"
-            :indeterminate="true"
-            :duration="3"
+            :percentage="currentTask.progressPercent || 0"
+            :status="getProgressStatus(currentTask.status)"
+            :stroke-width="18"
           />
-          <p class="progress-text">正在检测中，请稍候...</p>
+          <p v-if="currentTask.status === 'processing'" class="progress-tip">
+            系统正在按批次执行检测，页面每 2 秒自动刷新一次进度。
+          </p>
+          <p v-if="currentTask.status === 'pending'" class="progress-tip">
+            任务已创建，正在后台排队，页面会自动刷新任务状态。
+          </p>
         </div>
 
-        <!-- 检测结果 -->
+        <div v-if="currentTask.status === 'processing'" class="running-stats">
+          <div class="mini-stat">
+            <span class="mini-label">敏感词命中</span>
+            <span class="mini-value danger">{{ formatNumber(currentTask.sensitiveHits) }}</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">问题书目命中</span>
+            <span class="mini-value warning">{{ formatNumber(currentTask.problemBookHits) }}</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">非白名单出版社</span>
+            <span class="mini-value info">{{ formatNumber(currentTask.nonWhitelistPubs) }}</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-label">问题书目总数</span>
+            <span class="mini-value primary">{{ formatNumber(currentTask.totalProblemBooks) }}</span>
+          </div>
+        </div>
+
         <div v-if="currentTask.status === 'success'" class="result-summary">
-          <el-alert
-            title="检测完成"
-            type="success"
-            :closable="false"
-            show-icon
-          >
+          <el-alert title="检测完成" type="success" :closable="false" show-icon>
             <template #default>
               <div class="result-stats">
                 <div class="stat-item">
-                  <span class="stat-label">命中敏感词：</span>
-                  <span class="stat-value danger">{{ currentTask.sensitiveHits }}</span>
+                  <span class="stat-label">敏感词命中</span>
+                  <span class="stat-value danger">{{ formatNumber(currentTask.sensitiveHits) }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">命中问题书目：</span>
-                  <span class="stat-value warning">{{ currentTask.problemBookHits }}</span>
+                  <span class="stat-label">问题书目命中</span>
+                  <span class="stat-value warning">{{ formatNumber(currentTask.problemBookHits) }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">非白名单出版社：</span>
-                  <span class="stat-value info">{{ currentTask.nonWhitelistPubs }}</span>
+                  <span class="stat-label">非白名单出版社</span>
+                  <span class="stat-value info">{{ formatNumber(currentTask.nonWhitelistPubs) }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">总问题书目：</span>
-                  <span class="stat-value primary">{{ currentTask.totalProblemBooks }}</span>
+                  <span class="stat-label">问题书目总数</span>
+                  <span class="stat-value primary">{{ formatNumber(currentTask.totalProblemBooks) }}</span>
                 </div>
               </div>
             </template>
@@ -136,28 +148,21 @@
             </el-button>
             <el-button type="success" @click="handleExport(currentTask.taskId)">
               <el-icon><Download /></el-icon>
-              导出Excel报告
+              导出 Excel 报告
             </el-button>
           </div>
         </div>
 
-        <!-- 错误信息 -->
         <div v-if="currentTask.status === 'failed'" class="error-info">
-          <el-alert
-            title="检测失败"
-            type="error"
-            :closable="false"
-            show-icon
-          >
+          <el-alert title="检测失败" type="error" :closable="false" show-icon>
             <template #default>
-              <p>{{ currentTask.errorMessage || '检测过程中发生错误，请重试' }}</p>
+              <p>{{ currentTask.errorMessage || '检测过程中发生错误，请稍后重试。' }}</p>
             </template>
           </el-alert>
         </div>
       </div>
     </el-card>
 
-    <!-- 最近的检测任务 -->
     <el-card class="history-card">
       <template #header>
         <div class="card-header">
@@ -169,9 +174,20 @@
       </template>
 
       <el-table :data="recentTasks" stripe>
-        <el-table-column prop="taskName" label="任务名称" min-width="200" />
+        <el-table-column prop="taskName" label="任务名称" min-width="220" />
         <el-table-column prop="submitTime" label="提交时间" width="180" />
-        <el-table-column prop="totalBooks" label="总书目数" width="100" align="center" />
+        <el-table-column label="进度" min-width="220">
+          <template #default="{ row }">
+            <div class="table-progress">
+              <el-progress
+                :percentage="row.progressPercent || 0"
+                :status="getProgressStatus(row.status)"
+                :stroke-width="14"
+              />
+              <span class="table-progress-text">{{ getProgressText(row) }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="totalProblemBooks" label="问题书目" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.totalProblemBooks > 0" type="danger">
@@ -187,7 +203,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="220" align="center">
           <template #default="{ row }">
             <el-button
               v-if="row.status === 'success'"
@@ -209,6 +225,14 @@
               v-if="row.status === 'processing'"
               type="warning"
               link
+              @click="handleFocusTask(row.taskId)"
+            >
+              查看进度
+            </el-button>
+            <el-button
+              v-if="row.status === 'processing'"
+              type="danger"
+              link
               @click="handleCancelTask(row.taskId)"
             >
               取消
@@ -222,7 +246,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, UploadFilled, Upload, View, ArrowRight } from '@element-plus/icons-vue'
 import {
@@ -234,48 +258,32 @@ import {
   cancelTask
 } from '@/api/detection'
 
+const route = useRoute()
 const router = useRouter()
 
-// 上传相关
 const uploadRef = ref(null)
 const fileList = ref([])
 const uploading = ref(false)
-const uploadAction = '' // 不使用action，手动上传
+const uploadAction = ''
 
-// 当前检测任务
 const currentTask = ref(null)
-
-// 最近的任务列表
 const recentTasks = ref([])
 
-// 轮询定时器
 let pollingTimer = null
 
-/**
- * 处理文件选择
- */
 const handleFileChange = (file) => {
   fileList.value = [file]
 }
 
-/**
- * 处理文件移除
- */
 const handleFileRemove = () => {
   fileList.value = []
 }
 
-/**
- * 清空文件
- */
 const handleClearFile = () => {
   fileList.value = []
-  uploadRef.value.clearFiles()
+  uploadRef.value?.clearFiles()
 }
 
-/**
- * 上传文件并开始检测
- */
 const handleUpload = async () => {
   if (fileList.value.length === 0) {
     ElMessage.warning('请先选择要上传的文件')
@@ -283,43 +291,37 @@ const handleUpload = async () => {
   }
 
   const file = fileList.value[0].raw
-
-  // 文件大小检查
-  const maxSize = 50 * 1024 * 1024 // 50MB
+  const maxSize = 50 * 1024 * 1024
   if (file.size > maxSize) {
     ElMessage.error('文件大小不能超过 50MB')
     return
   }
 
   uploading.value = true
-
   try {
     const res = await uploadBooklist(file)
-
-    if (res.code === 200) {
-      ElMessage.success(res.data.message || '上传成功，正在检测中...')
-
-      // 设置当前任务
-      currentTask.value = {
-        taskId: res.data.taskId,
-        taskName: res.data.taskName,
-        status: res.data.status,
-        statusText: '处理中',
-        totalBooks: res.data.totalBooks,
-        submitTime: new Date().toLocaleString()
-      }
-
-      // 清空文件列表
-      handleClearFile()
-
-      // 开始轮询任务状态
-      startPolling(res.data.taskId)
-
-      // 刷新最近任务列表
-      loadRecentTasks()
-    } else {
+    if (res.code !== 200) {
       ElMessage.error(res.message || '上传失败')
+      return
     }
+
+    ElMessage.success(res.data.message || '上传成功，正在检测中...')
+    currentTask.value = {
+      taskId: res.data.taskId,
+      taskName: res.data.taskName,
+      taskType: '上传检测',
+      status: res.data.status,
+      statusText: '处理中',
+      totalBooks: res.data.totalBooks,
+      processedBooks: res.data.processedBooks || 0,
+      currentBatch: res.data.currentBatch || 0,
+      totalBatches: res.data.totalBatches || 1,
+      progressPercent: 0,
+      submitTime: new Date().toLocaleString()
+    }
+    handleClearFile()
+    await loadRecentTasks()
+    startPolling(res.data.taskId)
   } catch (error) {
     console.error('上传失败：', error)
     ElMessage.error(error.message || '上传失败，请重试')
@@ -328,40 +330,36 @@ const handleUpload = async () => {
   }
 }
 
-/**
- * 开始轮询任务状态
- */
-const startPolling = (taskId) => {
-  // 清除现有定时器
-  if (pollingTimer) {
-    clearInterval(pollingTimer)
+const loadTask = async (taskId, shouldPoll = true) => {
+  const res = await getTaskDetail(taskId)
+  if (res.code !== 200) {
+    ElMessage.error(res.message || '获取任务详情失败')
+    return
   }
 
-  // 每3秒查询一次
+  currentTask.value = res.data
+  if (shouldPoll && isRunning(res.data.status)) {
+    startPolling(taskId)
+  } else if (!isRunning(res.data.status)) {
+    stopPolling()
+  }
+}
+
+const startPolling = (taskId) => {
+  stopPolling()
   pollingTimer = setInterval(async () => {
     try {
-      const res = await getTaskDetail(taskId)
-
-      if (res.code === 200) {
-        currentTask.value = res.data
-
-        // 如果任务完成或失败，停止轮询
-        if (res.data.status === 'success' || res.data.status === 'failed' || res.data.status === 'cancelled') {
-          stopPolling()
-
-          // 刷新最近任务列表
-          loadRecentTasks()
-        }
+      await loadTask(taskId, false)
+      await loadRecentTasks()
+      if (!currentTask.value || !isRunning(currentTask.value.status)) {
+        stopPolling()
       }
     } catch (error) {
       console.error('查询任务状态失败：', error)
     }
-  }, 3000)
+  }, 2000)
 }
 
-/**
- * 停止轮询
- */
 const stopPolling = () => {
   if (pollingTimer) {
     clearInterval(pollingTimer)
@@ -369,16 +367,9 @@ const stopPolling = () => {
   }
 }
 
-/**
- * 加载最近的任务
- */
 const loadRecentTasks = async () => {
   try {
-    const res = await getTaskList({
-      pageNum: 1,
-      pageSize: 5
-    })
-
+    const res = await getTaskList({ pageNum: 1, pageSize: 5 })
     if (res.code === 200) {
       recentTasks.value = res.data.records || []
     }
@@ -387,23 +378,15 @@ const loadRecentTasks = async () => {
   }
 }
 
-/**
- * 下载检测模板
- */
 const handleDownloadTemplate = async () => {
   try {
     const blob = await downloadTemplate()
-
-    // 创建下载链接
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = '书单检测模板.xlsx'
     link.click()
-
-    // 释放URL对象
     window.URL.revokeObjectURL(url)
-
     ElMessage.success('模板下载成功')
   } catch (error) {
     console.error('下载模板失败：', error)
@@ -411,30 +394,27 @@ const handleDownloadTemplate = async () => {
   }
 }
 
-/**
- * 查看检测结果
- */
 const handleViewResult = (taskId) => {
   router.push(`/detection/result/${taskId}`)
 }
 
-/**
- * 导出检测结果
- */
+const handleFocusTask = async (taskId) => {
+  await loadTask(taskId, true)
+  router.replace({
+    path: '/detection/check',
+    query: { taskId }
+  })
+}
+
 const handleExport = async (taskId) => {
   try {
     const blob = await exportCheckResult(taskId)
-
-    // 创建下载链接
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = `检测结果_${taskId}.xlsx`
     link.click()
-
-    // 释放URL对象
     window.URL.revokeObjectURL(url)
-
     ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出失败：', error)
@@ -442,36 +422,29 @@ const handleExport = async (taskId) => {
   }
 }
 
-/**
- * 取消检测任务
- */
 const handleCancelTask = async (taskId) => {
   try {
-    await ElMessageBox.confirm(
-      '确定要取消这个检测任务吗？',
-      '确认取消',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm('确定要取消这个检测任务吗？', '确认取消', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
 
     const res = await cancelTask(taskId)
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '取消任务失败')
+      return
+    }
 
-    if (res.code === 200) {
-      ElMessage.success('任务已取消')
-
-      // 如果是当前任务，停止轮询
-      if (currentTask.value && currentTask.value.taskId === taskId) {
-        stopPolling()
+    ElMessage.success('任务已取消')
+    if (currentTask.value?.taskId === taskId) {
+      await loadTask(taskId, false).catch(() => {
         currentTask.value.status = 'cancelled'
         currentTask.value.statusText = '已取消'
-      }
-
-      // 刷新任务列表
-      loadRecentTasks()
+      })
     }
+    await loadRecentTasks()
+    stopPolling()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('取消任务失败：', error)
@@ -480,16 +453,10 @@ const handleCancelTask = async (taskId) => {
   }
 }
 
-/**
- * 查看全部历史
- */
 const handleViewAllHistory = () => {
   router.push('/detection/history')
 }
 
-/**
- * 获取状态类型
- */
 const getStatusType = (status) => {
   const typeMap = {
     pending: 'info',
@@ -501,16 +468,60 @@ const getStatusType = (status) => {
   return typeMap[status] || 'info'
 }
 
-/**
- * 组件挂载
- */
-onMounted(() => {
-  loadRecentTasks()
+const getProgressStatus = (status) => {
+  if (status === 'success') return 'success'
+  if (status === 'failed') return 'exception'
+  return undefined
+}
+
+const getProgressText = (task) => {
+  const processed = formatNumber(task?.processedBooks)
+  const total = formatNumber(task?.totalBooks)
+  const batch = formatBatch(task?.currentBatch, task?.totalBatches)
+  if (!task) {
+    return '-'
+  }
+  if (task.status === 'success') {
+    return `已完成 ${processed}/${total}`
+  }
+  if (task.status === 'failed') {
+    return `失败于 ${processed}/${total}`
+  }
+  if (task.status === 'cancelled') {
+    return `已取消，停在 ${batch}`
+  }
+  if (task.status === 'processing') {
+    return `已处理 ${processed}/${total}，当前 ${batch}`
+  }
+  return `等待执行，计划 ${batch}`
+}
+
+const formatBatch = (currentBatch, totalBatches) => {
+  const current = currentBatch || 0
+  const total = totalBatches || 0
+  return `${current}/${total}`
+}
+
+const formatNumber = (value) => {
+  return Number(value || 0).toLocaleString('zh-CN')
+}
+
+const isRunning = (status) => ['pending', 'processing'].includes(status)
+
+onMounted(async () => {
+  await loadRecentTasks()
+  const taskId = Number(route.query.taskId)
+  if (taskId) {
+    await loadTask(taskId, true)
+    return
+  }
+
+  const runningTask = recentTasks.value.find(task => isRunning(task.status))
+  if (runningTask) {
+    await loadTask(runningTask.taskId, true)
+  }
 })
 
-/**
- * 组件卸载
- */
 onUnmounted(() => {
   stopPolling()
 })
@@ -521,18 +532,22 @@ onUnmounted(() => {
   padding: 20px;
 }
 
-.header-card {
+.header-card,
+.upload-card,
+.progress-card,
+.history-card {
   margin-bottom: 20px;
 }
 
-.header-content {
+.header-content,
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .header-content h2 {
-  margin: 0 0 8px 0;
+  margin: 0 0 8px;
   font-size: 24px;
   color: #303133;
 }
@@ -540,32 +555,17 @@ onUnmounted(() => {
 .description {
   margin: 0;
   color: #909399;
-  font-size: 14px;
-}
-
-.upload-card {
-  margin-bottom: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 500;
 }
 
 .upload-area {
   margin-bottom: 20px;
 }
 
-.upload-actions {
+.upload-actions,
+.result-actions {
   display: flex;
   justify-content: center;
-  gap: 20px;
-}
-
-.progress-card {
-  margin-bottom: 20px;
+  gap: 16px;
 }
 
 .task-info {
@@ -574,72 +574,97 @@ onUnmounted(() => {
   gap: 20px;
 }
 
-.progress-bar {
-  margin-top: 20px;
+.progress-panel {
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 12px;
 }
 
-.progress-text {
-  text-align: center;
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
   color: #606266;
-  margin-top: 10px;
 }
 
-.result-summary {
-  margin-top: 20px;
+.progress-tip {
+  margin: 10px 0 0;
+  color: #909399;
+  font-size: 13px;
 }
 
+.running-stats,
 .result-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-top: 15px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
+.mini-stat,
 .stat-item {
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #ebeef5;
   text-align: center;
 }
 
+.mini-label,
 .stat-label {
   display: block;
   color: #606266;
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: 8px;
 }
 
+.mini-value,
 .stat-value {
   display: block;
-  font-size: 28px;
-  font-weight: bold;
+  font-size: 26px;
+  font-weight: 700;
 }
 
-.stat-value.danger {
+.danger {
   color: #f56c6c;
 }
 
-.stat-value.warning {
+.warning {
   color: #e6a23c;
 }
 
-.stat-value.info {
+.info {
   color: #909399;
 }
 
-.stat-value.primary {
+.primary {
   color: #409eff;
 }
 
-.result-actions {
+.table-progress {
   display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 20px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.error-info {
-  margin-top: 20px;
+.table-progress-text {
+  font-size: 12px;
+  color: #909399;
 }
 
-.history-card {
-  margin-bottom: 20px;
+@media (max-width: 900px) {
+  .header-content,
+  .card-header,
+  .upload-actions,
+  .result-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .running-stats,
+  .result-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

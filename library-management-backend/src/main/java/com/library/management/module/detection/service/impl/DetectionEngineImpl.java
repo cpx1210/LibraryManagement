@@ -1,62 +1,84 @@
 package com.library.management.module.detection.service.impl;
 
 import com.library.management.module.detection.dto.BookItemDTO;
+import com.library.management.module.detection.dto.DetectionReferenceDataSnapshot;
 import com.library.management.module.detection.dto.DetectionResultDTO;
+import com.library.management.module.detection.dto.ProblemBookMatchCandidate;
 import com.library.management.module.detection.dto.SensitiveHitDetailDTO;
 import com.library.management.module.detection.service.DetectionEngine;
 import com.library.management.module.problembook.entity.ProblemBook;
-import com.library.management.module.problembook.mapper.ProblemBookMapper;
-import com.library.management.module.publisher.entity.PublisherWhitelist;
-import com.library.management.module.publisher.mapper.PublisherWhitelistMapper;
 import com.library.management.module.sensitiveword.entity.SensitiveWords;
-import com.library.management.module.sensitiveword.mapper.SensitiveWordMapper;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import jakarta.annotation.Resource;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
- * 检测引擎实现类
+ * 检测引擎实现类。
  *
- * 采用方案A：PostgreSQL 全文检索
- *
- * 检测流程：
- * 1. 敏感词检测（书名 + 作者）- 使用 ILIKE 模糊匹配
- * 2. 问题书目检测（ISBN 精确 + 书名相似度）- 使用 similarity() 函数
- * 3. 出版社白名单检测（出版社名称精确匹配）
- * 4. 根据检测结果计算风险等级
- *
- * 风险等级优先级：
- * - 命中敏感词 -> high（红色）
- * - 命中问题书目 -> medium（黄色）
- * - 非白名单出版社 -> low（无标注）
+ * 对于大批量馆藏任务，敏感词、问题书目和出版社白名单统一按任务级快照读取，
+ * 避免 140 万册检测过程中产生按册重复查库。
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class DetectionEngineImpl implements DetectionEngine {
 
-    @Resource
-    private SensitiveWordMapper sensitiveWordMapper;
+    private final DetectionReferenceDataService detectionReferenceDataService;
 
-    @Resource
-    private ProblemBookMapper problemBookMapper;
-
-    @Resource
-    private PublisherWhitelistMapper publisherWhitelistMapper;
-
-    /**
-     * 检测单本书
-     *
-     * @param book 书目信息
-     * @return 检测结果
-     */
     @Override
     public DetectionResultDTO detectBook(BookItemDTO book) {
-        log.debug("开始检测书目：{}", book.getBookName());
+        log.debug("开始检测书目：{}", book != null ? book.getBookName() : null);
+        return detectBook(book, detectionReferenceDataService.getSnapshot());
+    }
+
+    @Override
+    public List<DetectionResultDTO> batchDetect(List<BookItemDTO> books) {
+        if (books == null || books.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        log.info("开始批量检测，共 {} 本书", books.size());
+        DetectionReferenceDataSnapshot referenceData = detectionReferenceDataService.getSnapshot();
+        List<DetectionResultDTO> results = new ArrayList<>(books.size());
+
+        for (BookItemDTO book : books) {
+            try {
+                results.add(detectBook(book, referenceData));
+            } catch (Exception e) {
+                log.error("检测书目失败：{}，错误：{}", book != null ? book.getBookName() : null, e.getMessage(), e);
+                results.add(DetectionResultDTO.builder()
+                        .isbn(book != null ? book.getIsbn() : null)
+                        .bookName(book != null ? book.getBookName() : null)
+                        .author(book != null ? book.getAuthor() : null)
+                        .publisher(book != null ? book.getPublisher() : null)
+                        .hitSensitive(false)
+                        .hitProblemBook(false)
+                        .isWhitelistPublisher(false)
+                        .riskLevel("low")
+                        .remark("检测失败：" + e.getMessage())
+                        .build());
+            }
+        }
+
+        log.info("批量检测完成，共检测 {} 本书", results.size());
+        return results;
+    }
+
+    private DetectionResultDTO detectBook(BookItemDTO book, DetectionReferenceDataSnapshot referenceData) {
+        if (book == null) {
+            return DetectionResultDTO.builder()
+                    .hitSensitive(false)
+                    .hitProblemBook(false)
+                    .isWhitelistPublisher(false)
+                    .sensitiveWords(Collections.emptyList())
+                    .build();
+        }
 
         DetectionResultDTO result = DetectionResultDTO.builder()
                 .isbn(book.getIsbn())
@@ -73,324 +95,254 @@ public class DetectionEngineImpl implements DetectionEngine {
                 .sensitiveWords(new ArrayList<>())
                 .build();
 
-        // 1. 敏感词检测（扩展的字段检测）
-        detectSensitiveWords(result);
-
-        // 2. 问题书目检测
-        detectProblemBook(result);
-
-        // 3. 出版社白名单检测
-        checkPublisherWhitelist(result);
-
-        // 4. 计算综合风险等级
+        detectSensitiveWords(result, referenceData);
+        detectProblemBook(result, referenceData);
+        checkPublisherWhitelist(result, referenceData);
         result.calculateRiskLevel();
-
-        // 5. 生成检测备注
         generateRemark(result);
-
-        log.debug("检测完成：{}，风险等级：{}", book.getBookName(), result.getRiskLevel());
-
         return result;
     }
 
-    /**
-     * 批量检测书目
-     *
-     * @param books 书目列表
-     * @return 检测结果列表
-     */
-    @Override
-    public List<DetectionResultDTO> batchDetect(List<BookItemDTO> books) {
-        log.info("开始批量检测，共 {} 本书", books.size());
-
-        List<DetectionResultDTO> results = new ArrayList<>(books.size());
-
-        for (BookItemDTO book : books) {
-            try {
-                DetectionResultDTO result = detectBook(book);
-                results.add(result);
-            } catch (Exception e) {
-                log.error("检测书目失败：{}，错误：{}", book.getBookName(), e.getMessage(), e);
-                // 创建一个错误结果
-                DetectionResultDTO errorResult = DetectionResultDTO.builder()
-                        .isbn(book.getIsbn())
-                        .bookName(book.getBookName())
-                        .author(book.getAuthor())
-                        .publisher(book.getPublisher())
-                        .hitSensitive(false)
-                        .hitProblemBook(false)
-                        .isWhitelistPublisher(false)
-                        .riskLevel("low")
-                        .remark("检测失败：" + e.getMessage())
-                        .build();
-                results.add(errorResult);
-            }
-        }
-
-        log.info("批量检测完成，共检测 {} 本书", results.size());
-
-        return results;
-    }
-
-    /**
-     * 敏感词检测（优化版）
-     * 根据敏感词的检测类型（关键词、书名、作者）进行精确检测
-     *
-     * 改进点：
-     * 1. 扩展"关键词"类型的检测字段（书名、副题名、作者、内容简介、读者对象等）
-     * 2. 支持 & 符号的 AND 逻辑（如"警察&腐败"需要同时包含两个词）
-     * 3. 书名和作者采用更精确的匹配方式
-     * 4. 记录详细的命中信息（字段名、关键词、原因）
-     *
-     * @param result 检测结果（会被修改）
-     */
-    private void detectSensitiveWords(DetectionResultDTO result) {
+    private void detectSensitiveWords(DetectionResultDTO result, DetectionReferenceDataSnapshot referenceData) {
         List<SensitiveWords> hitWords = new ArrayList<>();
         List<SensitiveHitDetailDTO> hitDetails = new ArrayList<>();
 
-        // 构建字段名称映射
         java.util.Map<String, String> fieldNameMap = new java.util.LinkedHashMap<>();
-        if (StringUtils.hasText(result.getBookName()))
+        if (StringUtils.hasText(result.getBookName())) {
             fieldNameMap.put(result.getBookName(), "书名");
-        if (StringUtils.hasText(result.getSubtitle()))
-            fieldNameMap.put(result.getSubtitle(), "副题名");
-        if (StringUtils.hasText(result.getAuthor()))
-            fieldNameMap.put(result.getAuthor(), "著者");
-        if (StringUtils.hasText(result.getPublisher()))
+        }
+        if (StringUtils.hasText(result.getSubtitle())) {
+            fieldNameMap.put(result.getSubtitle(), "副标题");
+        }
+        if (StringUtils.hasText(result.getAuthor())) {
+            fieldNameMap.put(result.getAuthor(), "作者");
+        }
+        if (StringUtils.hasText(result.getPublisher())) {
             fieldNameMap.put(result.getPublisher(), "出版社");
-        if (StringUtils.hasText(result.getPublishLocation()))
+        }
+        if (StringUtils.hasText(result.getPublishLocation())) {
             fieldNameMap.put(result.getPublishLocation(), "出版地");
-        if (StringUtils.hasText(result.getTargetAudience()))
+        }
+        if (StringUtils.hasText(result.getTargetAudience())) {
             fieldNameMap.put(result.getTargetAudience(), "读者对象");
-        if (StringUtils.hasText(result.getContentSummary()))
+        }
+        if (StringUtils.hasText(result.getContentSummary())) {
             fieldNameMap.put(result.getContentSummary(), "内容简介");
-
-        // 1. 检测"关键词"类型（全局检测：所有文本字段）
-        List<SensitiveWords> keywordTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("关键词");
-        if (keywordTypeWords != null && !keywordTypeWords.isEmpty()) {
-            for (SensitiveWords word : keywordTypeWords) {
-                String keyword = word.getKeyword();
-
-                // 检测每个字段
-                for (java.util.Map.Entry<String, String> entry : fieldNameMap.entrySet()) {
-                    String fieldText = entry.getKey();
-                    String fieldName = entry.getValue();
-
-                    if (matchKeyword(fieldText, keyword)) {
-                        hitWords.add(word);
-                        // 记录详细命中信息
-                        hitDetails.add(SensitiveHitDetailDTO.builder()
-                                .fieldName(fieldName)
-                                .keyword(keyword)
-                                .reason(word.getAlertMessage())
-                                .detectionType("关键词")
-                                .riskLevel(word.getRiskLevel())
-                                .build());
-                        log.debug("命中关键词类型敏感词：「{}」，命中字段：{}", keyword, fieldName);
-                    }
-                }
-            }
         }
 
-        // 2. 检测"书名"类型（仅检测书名和副题名字段，使用精确匹配）
-        List<SensitiveWords> bookNameTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("书名");
-        if (bookNameTypeWords != null && !bookNameTypeWords.isEmpty()) {
-            for (SensitiveWords word : bookNameTypeWords) {
-                String keyword = word.getKeyword();
+        detectKeywordTypeSensitiveWords(referenceData.getKeywordSensitiveWords(), fieldNameMap, hitWords, hitDetails);
+        detectBookNameTypeSensitiveWords(referenceData.getBookNameSensitiveWords(), result, hitWords, hitDetails);
+        detectAuthorTypeSensitiveWords(referenceData.getAuthorSensitiveWords(), result, hitWords, hitDetails);
 
-                // 检测书名（精确匹配或包含匹配）
-                if (StringUtils.hasText(result.getBookName())) {
-                    if (result.getBookName().equals(keyword) || result.getBookName().contains(keyword)) {
-                        hitWords.add(word);
-                        hitDetails.add(SensitiveHitDetailDTO.builder()
-                                .fieldName("书名")
-                                .keyword(keyword)
-                                .reason(word.getAlertMessage())
-                                .detectionType("书名")
-                                .riskLevel(word.getRiskLevel())
-                                .build());
-                        log.debug("书名「{}」命中书名类型敏感词：{}", result.getBookName(), keyword);
-                    }
-                }
-
-                // 检测副题名
-                if (StringUtils.hasText(result.getSubtitle())) {
-                    if (result.getSubtitle().equals(keyword) || result.getSubtitle().contains(keyword)) {
-                        hitWords.add(word);
-                        hitDetails.add(SensitiveHitDetailDTO.builder()
-                                .fieldName("副题名")
-                                .keyword(keyword)
-                                .reason(word.getAlertMessage())
-                                .detectionType("书名")
-                                .riskLevel(word.getRiskLevel())
-                                .build());
-                        log.debug("副题名「{}」命中书名类型敏感词：{}", result.getSubtitle(), keyword);
-                    }
-                }
-            }
-        }
-
-        // 3. 检测"作者"类型（仅检测作者字段，处理多作者情况）
-        List<SensitiveWords> authorTypeWords = sensitiveWordMapper.detectSensitiveWordsByType("作者");
-        if (authorTypeWords != null && !authorTypeWords.isEmpty()) {
-            for (SensitiveWords word : authorTypeWords) {
-                String keyword = word.getKeyword();
-
-                // 检测作者字段（合并的作者字段）
-                if (StringUtils.hasText(result.getAuthor())) {
-                    // 分割多个作者（支持 ; , 、 等分隔符）
-                    String[] authors = result.getAuthor().split("[;,、]");
-                    int authorIndex = 0;
-                    for (String author : authors) {
-                        authorIndex++;
-                        String trimmedAuthor = author.trim();
-                        // 精确匹配或包含匹配
-                        if (trimmedAuthor.equals(keyword) || trimmedAuthor.contains(keyword)) {
-                            hitWords.add(word);
-                            // 根据作者位置设置字段名（著者1、著者2等）
-                            String fieldName = authors.length > 1 ? "著者" + authorIndex : "著者";
-                            hitDetails.add(SensitiveHitDetailDTO.builder()
-                                    .fieldName(fieldName)
-                                    .keyword(keyword)
-                                    .reason(word.getAlertMessage())
-                                    .detectionType("作者")
-                                    .riskLevel(word.getRiskLevel())
-                                    .build());
-                            log.debug("作者「{}」命中作者类型敏感词：{}", trimmedAuthor, keyword);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 设置检测结果
         if (!hitWords.isEmpty()) {
             result.setHitSensitive(true);
-
-            // 提取敏感词关键字列表（去重）
-            List<String> keywords = hitWords.stream()
+            result.setSensitiveWords(hitWords.stream()
                     .map(SensitiveWords::getKeyword)
                     .distinct()
-                    .collect(Collectors.toList());
-            result.setSensitiveWords(keywords);
-
-            // 设置详细命中信息
+                    .collect(Collectors.toList()));
             result.setSensitiveHitDetails(hitDetails);
-
-            // 获取最高风险等级
-            int maxRiskLevel = hitWords.stream()
+            result.setMaxSensitiveRiskLevel(hitWords.stream()
                     .mapToInt(SensitiveWords::getRiskLevel)
                     .max()
-                    .orElse(1);
-            result.setMaxSensitiveRiskLevel(maxRiskLevel);
-
-            log.info("命中敏感词：{}，详细信息数量：{}，最高风险等级：{}", keywords, hitDetails.size(), maxRiskLevel);
+                    .orElse(1));
         }
     }
 
-    /**
-     * 关键词匹配（支持 & 符号的 AND 逻辑）
-     *
-     * @param text    待检测文本
-     * @param keyword 关键词（可能包含 & 符号）
-     * @return 是否匹配
-     */
+    private void detectKeywordTypeSensitiveWords(List<SensitiveWords> words,
+                                                 java.util.Map<String, String> fieldNameMap,
+                                                 List<SensitiveWords> hitWords,
+                                                 List<SensitiveHitDetailDTO> hitDetails) {
+        if (words == null || words.isEmpty()) {
+            return;
+        }
+
+        for (SensitiveWords word : words) {
+            String keyword = word.getKeyword();
+            for (java.util.Map.Entry<String, String> entry : fieldNameMap.entrySet()) {
+                if (matchKeyword(entry.getKey(), keyword)) {
+                    hitWords.add(word);
+                    hitDetails.add(SensitiveHitDetailDTO.builder()
+                            .fieldName(entry.getValue())
+                            .keyword(keyword)
+                            .reason(word.getAlertMessage())
+                            .detectionType("关键词")
+                            .riskLevel(word.getRiskLevel())
+                            .build());
+                }
+            }
+        }
+    }
+
+    private void detectBookNameTypeSensitiveWords(List<SensitiveWords> words,
+                                                  DetectionResultDTO result,
+                                                  List<SensitiveWords> hitWords,
+                                                  List<SensitiveHitDetailDTO> hitDetails) {
+        if (words == null || words.isEmpty()) {
+            return;
+        }
+
+        for (SensitiveWords word : words) {
+            String keyword = word.getKeyword();
+            if (StringUtils.hasText(result.getBookName())
+                    && (result.getBookName().equals(keyword) || result.getBookName().contains(keyword))) {
+                hitWords.add(word);
+                hitDetails.add(SensitiveHitDetailDTO.builder()
+                        .fieldName("书名")
+                        .keyword(keyword)
+                        .reason(word.getAlertMessage())
+                        .detectionType("书名")
+                        .riskLevel(word.getRiskLevel())
+                        .build());
+            }
+
+            if (StringUtils.hasText(result.getSubtitle())
+                    && (result.getSubtitle().equals(keyword) || result.getSubtitle().contains(keyword))) {
+                hitWords.add(word);
+                hitDetails.add(SensitiveHitDetailDTO.builder()
+                        .fieldName("副标题")
+                        .keyword(keyword)
+                        .reason(word.getAlertMessage())
+                        .detectionType("书名")
+                        .riskLevel(word.getRiskLevel())
+                        .build());
+            }
+        }
+    }
+
+    private void detectAuthorTypeSensitiveWords(List<SensitiveWords> words,
+                                                DetectionResultDTO result,
+                                                List<SensitiveWords> hitWords,
+                                                List<SensitiveHitDetailDTO> hitDetails) {
+        if (words == null || words.isEmpty() || !StringUtils.hasText(result.getAuthor())) {
+            return;
+        }
+
+        String[] authors = result.getAuthor().split("[;,，、]");
+        for (SensitiveWords word : words) {
+            String keyword = word.getKeyword();
+            for (int i = 0; i < authors.length; i++) {
+                String trimmedAuthor = authors[i] == null ? null : authors[i].trim();
+                if (!StringUtils.hasText(trimmedAuthor)) {
+                    continue;
+                }
+                if (trimmedAuthor.equals(keyword) || trimmedAuthor.contains(keyword)) {
+                    hitWords.add(word);
+                    hitDetails.add(SensitiveHitDetailDTO.builder()
+                            .fieldName(authors.length > 1 ? "作者" + (i + 1) : "作者")
+                            .keyword(keyword)
+                            .reason(word.getAlertMessage())
+                            .detectionType("作者")
+                            .riskLevel(word.getRiskLevel())
+                            .build());
+                }
+            }
+        }
+    }
+
     private boolean matchKeyword(String text, String keyword) {
-        if (text == null || keyword == null) {
+        if (!StringUtils.hasText(text) || !StringUtils.hasText(keyword)) {
             return false;
         }
 
-        // 处理 & 符号（表示 AND 逻辑：必须同时包含所有部分）
         if (keyword.contains("&")) {
             String[] parts = keyword.split("&");
             for (String part : parts) {
                 String trimmedPart = part.trim();
                 if (!text.contains(trimmedPart)) {
-                    return false; // 任何一个部分不存在，都不算匹配
+                    return false;
                 }
             }
-            return true; // 所有部分都存在
-        } else {
-            // 普通匹配
-            return text.contains(keyword);
+            return true;
         }
+        return text.contains(keyword);
     }
 
-    /**
-     * 问题书目检测
-     * 使用 ISBN 精确匹配 + 书名相似度匹配
-     *
-     * @param result 检测结果（会被修改）
-     */
-    private void detectProblemBook(DetectionResultDTO result) {
-        // ISBN 和书名至少有一个不为空才进行检测
+    private void detectProblemBook(DetectionResultDTO result, DetectionReferenceDataSnapshot referenceData) {
         if (!StringUtils.hasText(result.getIsbn()) && !StringUtils.hasText(result.getBookName())) {
             return;
         }
 
-        ProblemBook problemBook = problemBookMapper.detectProblemBook(
-                result.getIsbn(),
-                result.getBookName());
-
-        if (problemBook != null) {
-            result.setHitProblemBook(true);
-
-            // 生成问题书目信息
-            StringBuilder problemInfo = new StringBuilder();
-            problemInfo.append("问题类型：").append(problemBook.getProblemType());
-            if (StringUtils.hasText(problemBook.getSource())) {
-                problemInfo.append("，来源：").append(problemBook.getSource());
-            }
-            result.setProblemBookInfo(problemInfo.toString());
-
-            log.info("命中问题书目：{}，{}", result.getBookName(), problemInfo);
+        ProblemBook problemBook = matchProblemBook(result, referenceData);
+        if (problemBook == null) {
+            return;
         }
+
+        result.setHitProblemBook(true);
+        StringBuilder problemInfo = new StringBuilder();
+        problemInfo.append("问题类型：").append(problemBook.getProblemType());
+        if (StringUtils.hasText(problemBook.getSource())) {
+            problemInfo.append("，来源：").append(problemBook.getSource());
+        }
+        result.setProblemBookInfo(problemInfo.toString());
     }
 
-    /**
-     * 出版社白名单检测
-     * 检查出版社是否在白名单内
-     *
-     * @param result 检测结果（会被修改）
-     */
-    private void checkPublisherWhitelist(DetectionResultDTO result) {
+    private ProblemBook matchProblemBook(DetectionResultDTO result, DetectionReferenceDataSnapshot referenceData) {
+        String normalizedIsbn = normalizeText(result.getIsbn());
+        if (StringUtils.hasText(normalizedIsbn)) {
+            ProblemBook exactMatch = referenceData.getProblemBookByIsbn().get(normalizedIsbn);
+            if (exactMatch != null) {
+                return exactMatch;
+            }
+        }
+
+        String normalizedBookName = normalizeText(result.getBookName());
+        if (!StringUtils.hasText(normalizedBookName)) {
+            return null;
+        }
+
+        ProblemBook bestMatch = null;
+        int bestRank = Integer.MAX_VALUE;
+        int bestLength = Integer.MAX_VALUE;
+
+        for (ProblemBookMatchCandidate candidate : referenceData.getProblemBookNameCandidates()) {
+            int rank = rankProblemBookName(normalizedBookName, candidate.getNormalizedBookName());
+            if (rank == Integer.MAX_VALUE) {
+                continue;
+            }
+
+            if (rank < bestRank || (rank == bestRank && candidate.getNormalizedBookNameLength() < bestLength)) {
+                bestRank = rank;
+                bestLength = candidate.getNormalizedBookNameLength();
+                bestMatch = candidate.getProblemBook();
+            }
+        }
+
+        return bestMatch;
+    }
+
+    private int rankProblemBookName(String normalizedBookName, String normalizedProblemBookName) {
+        if (!StringUtils.hasText(normalizedBookName) || !StringUtils.hasText(normalizedProblemBookName)) {
+            return Integer.MAX_VALUE;
+        }
+        if (normalizedProblemBookName.equals(normalizedBookName)) {
+            return 0;
+        }
+        if (normalizedProblemBookName.startsWith(normalizedBookName)) {
+            return 1;
+        }
+        if (normalizedProblemBookName.contains(normalizedBookName)) {
+            return 2;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private void checkPublisherWhitelist(DetectionResultDTO result, DetectionReferenceDataSnapshot referenceData) {
         if (!StringUtils.hasText(result.getPublisher())) {
             result.setIsWhitelistPublisher(false);
             return;
         }
 
-        PublisherWhitelist whitelist = publisherWhitelistMapper.selectActiveByPublisherName(
-                result.getPublisher());
-
-        if (whitelist != null) {
-            result.setIsWhitelistPublisher(true);
-            log.debug("出版社「{}」在白名单内", result.getPublisher());
-        } else {
-            result.setIsWhitelistPublisher(false);
-            log.debug("出版社「{}」不在白名单内", result.getPublisher());
-        }
+        String normalizedPublisher = normalizeText(result.getPublisher());
+        result.setIsWhitelistPublisher(referenceData.getActiveWhitelistPublishers().contains(normalizedPublisher));
     }
 
-    /**
-     * 生成检测备注信息
-     * 
-     * 按照优先级顺序：
-     * 1. 首先检查白名单：非白名单 → 【非白名单出版社】（浅黄色，中风险）
-     * 2. 其次检查问题书目：命中 → 【问题书目】+ 具体信息（浅红色，高风险）
-     * 3. 最后检查敏感词：命中 → 【敏感词】+ 详细匹配信息（浅红色，高风险）
-     * 4. 无问题时留空
-     *
-     * @param result 检测结果（会被修改）
-     */
     private void generateRemark(DetectionResultDTO result) {
         StringBuilder remark = new StringBuilder();
 
-        // 1. 首先检查白名单（中风险 - 浅黄色）
         if (Boolean.FALSE.equals(result.getIsWhitelistPublisher())) {
             remark.append("【非白名单出版社】");
         }
 
-        // 2. 其次检查问题书目（高风险 - 浅红色）
         if (Boolean.TRUE.equals(result.getHitProblemBook())) {
             if (remark.length() > 0) {
                 remark.append(" ");
@@ -401,7 +353,6 @@ public class DetectionEngineImpl implements DetectionEngine {
             }
         }
 
-        // 3. 最后检查敏感词（高风险 - 浅红色）
         if (Boolean.TRUE.equals(result.getHitSensitive())) {
             if (remark.length() > 0) {
                 remark.append(" ");
@@ -409,8 +360,6 @@ public class DetectionEngineImpl implements DetectionEngine {
             remark.append("【敏感词】");
 
             if (result.getSensitiveHitDetails() != null && !result.getSensitiveHitDetails().isEmpty()) {
-                // 使用详细信息生成备注
-                // 格式：字段名匹配到关键词：xxx（原因：xxx）
                 List<String> detailTexts = result.getSensitiveHitDetails().stream()
                         .map(detail -> {
                             StringBuilder sb = new StringBuilder();
@@ -427,15 +376,18 @@ public class DetectionEngineImpl implements DetectionEngine {
                         .collect(Collectors.toList());
                 remark.append(String.join("；", detailTexts));
             } else if (result.getSensitiveWords() != null && !result.getSensitiveWords().isEmpty()) {
-                // 兼容旧格式
                 remark.append("命中敏感词：");
                 remark.append(String.join("、", result.getSensitiveWords()));
             }
         }
 
-        // 4. 无问题时留空（不输出"无问题"）
-        // 如果 remark 为空，不设置任何内容
-
         result.setRemark(remark.toString());
+    }
+
+    private String normalizeText(String text) {
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        return text.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 }

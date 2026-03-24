@@ -2,7 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.library.management.module.detection.mapper.BooklistCheckTaskMapper">
 
-    <!-- 分页查询检测任务列表 -->
     <select id="selectTaskPage" resultType="com.library.management.module.detection.entity.BooklistCheckTask">
         SELECT
             task_id,
@@ -17,6 +16,9 @@
             result_file_path,
             status,
             total_books,
+            processed_books,
+            current_batch,
+            total_batches,
             sensitive_hits,
             problem_book_hits,
             non_whitelist_pubs,
@@ -39,7 +41,6 @@
         ORDER BY submit_time DESC
     </select>
 
-    <!-- 获取用户今天提交的任务数量 -->
     <select id="countTodayTasksByUser" resultType="int">
         SELECT COUNT(*)
         FROM booklist_check_task

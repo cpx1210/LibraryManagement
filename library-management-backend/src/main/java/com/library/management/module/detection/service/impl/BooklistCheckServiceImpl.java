@@ -17,6 +17,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +43,9 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class BooklistCheckServiceImpl implements BooklistCheckService {
+
+    private static final int DETECTION_BATCH_SIZE = 10_000;
+    private static final String TASK_REJECTED_MESSAGE = "检测任务排队已满，请稍后重试";
 
     @Resource
     private BooklistCheckTaskMapper taskMapper;
@@ -52,6 +58,9 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
     @Resource
     private com.library.management.module.collectionbook.mapper.CollectionBookMapper collectionBookMapper;
+
+    @Resource
+    private BooklistCheckAsyncService asyncService;
 
     /**
      * 上传书单并创建检测任务
@@ -86,6 +95,9 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .originalFilename(file.getOriginalFilename())
                 .status("pending")
                 .totalBooks(books.size())
+                .processedBooks(0)
+                .currentBatch(0)
+                .totalBatches(calculateTotalBatches(books.size()))
                 .sensitiveHits(0)
                 .problemBookHits(0)
                 .nonWhitelistPubs(0)
@@ -128,8 +140,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         log.info("保存书目明细成功：{} 条", details.size());
 
-        // 6. 异步执行检测
-        executeDetection(task.getTaskId());
+        // 6. 事务提交后再启动异步检测，避免异步线程查不到刚插入的任务
+        triggerUploadTaskAfterCommit(task.getTaskId());
 
         // 7. 返回响应
         return BooklistUploadResponse.builder()
@@ -137,6 +149,9 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .taskName(taskName)
                 .status("pending")
                 .totalBooks(books.size())
+                .processedBooks(0)
+                .currentBatch(0)
+                .totalBatches(task.getTotalBatches())
                 .message("上传成功，正在检测中...")
                 .build();
     }
@@ -432,6 +447,17 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     /**
      * 导出检测结果（Excel，带颜色标注）
      */
+    /**
+     * 分页查询检测结果明细列表
+     */
+    @Override
+    public IPage<CheckResultDetailDTO> getCheckDetailsPage(Long taskId, String riskLevel, Boolean hasIssue,
+            Integer pageNum, Integer pageSize) {
+        Page<BooklistCheckDetail> page = new Page<>(pageNum, pageSize);
+        IPage<BooklistCheckDetail> detailPage = detailMapper.selectDetailPage(page, taskId, riskLevel, hasIssue);
+        return detailPage.convert(this::convertDetailToDTO);
+    }
+
     @Override
     @Log(module = "detection", operationType = "export")
     public void exportCheckResult(Long taskId, HttpServletResponse response) {
@@ -694,10 +720,63 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         }
     }
 
+    private void triggerUploadTaskAfterCommit(Long taskId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    submitUploadTask(taskId);
+                }
+            });
+            return;
+        }
+        submitUploadTask(taskId);
+    }
+
+    private void submitUploadTask(Long taskId) {
+        try {
+            asyncService.processUploadTask(taskId);
+        } catch (RejectedExecutionException ex) {
+            log.warn("上传检测任务提交被拒绝：taskId={}, message={}", taskId, ex.getMessage());
+            markTaskAsFailed(taskId, TASK_REJECTED_MESSAGE);
+        }
+    }
+
+    private void markTaskAsFailed(Long taskId, String errorMessage) {
+        BooklistCheckTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            return;
+        }
+
+        task.setStatus("failed");
+        task.setErrorMessage(errorMessage);
+        task.setEndTime(LocalDateTime.now());
+        task.setUpdateTime(LocalDateTime.now());
+        taskMapper.updateById(task);
+    }
+
     /**
      * 转换为 DTO
      */
+    private int calculateTotalBatches(long totalBooks) {
+        return Math.max(1, (int) Math.ceil(totalBooks / (double) DETECTION_BATCH_SIZE));
+    }
+
     private BooklistCheckTaskDTO convertToDTO(BooklistCheckTask task) {
+        int totalBooks = task.getTotalBooks() == null ? 0 : task.getTotalBooks();
+        int processedBooks = task.getProcessedBooks() == null ? 0 : task.getProcessedBooks();
+        int totalBatches = task.getTotalBatches() == null ? 0 : task.getTotalBatches();
+        int currentBatch = task.getCurrentBatch() == null ? 0 : task.getCurrentBatch();
+
+        // 兼容历史任务数据：部分旧任务已成功，但没有回填 processed/currentBatch/totalBatches。
+        if ("success".equals(task.getStatus())) {
+            processedBooks = totalBooks;
+            if (totalBatches <= 0) {
+                totalBatches = totalBooks > 0 ? 1 : 0;
+            }
+            currentBatch = totalBatches;
+        }
+
         BooklistCheckTaskDTO dto = BooklistCheckTaskDTO.builder()
                 .taskId(task.getTaskId())
                 .taskName(task.getTaskName())
@@ -709,13 +788,18 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .originalFilename(task.getOriginalFilename())
                 .status(task.getStatus())
                 .statusText(getStatusText(task.getStatus()))
-                .totalBooks(task.getTotalBooks())
+                .totalBooks(totalBooks)
+                .processedBooks(processedBooks)
+                .currentBatch(currentBatch)
+                .totalBatches(totalBatches)
                 .sensitiveHits(task.getSensitiveHits())
                 .problemBookHits(task.getProblemBookHits())
                 .nonWhitelistPubs(task.getNonWhitelistPubs())
                 .totalProblemBooks(task.getTotalProblemBooks())
                 .errorMessage(task.getErrorMessage())
                 .build();
+
+        dto.setProgressPercent(totalBooks <= 0 ? 0 : Math.min(100, (int) ((processedBooks * 100L) / totalBooks)));
 
         // 计算耗时
         if (task.getStartTime() != null && task.getEndTime() != null) {

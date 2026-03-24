@@ -2,7 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.library.management.module.detection.mapper.BooklistCheckDetailMapper">
 
-    <!-- 批量插入检测结果明细 -->
     <insert id="batchInsert" parameterType="java.util.List">
         INSERT INTO booklist_check_detail (
             task_id,
@@ -58,7 +57,6 @@
         </foreach>
     </insert>
 
-    <!-- 根据任务ID查询检测结果明细 -->
     <select id="selectByTaskId" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
         SELECT
             detail_id,
@@ -92,7 +90,81 @@
         ORDER BY detail_id ASC
     </select>
 
-    <!-- 根据任务ID查询有问题的书目 -->
+    <select id="selectTaskBatch" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
+        SELECT
+            detail_id,
+            task_id,
+            book_number,
+            book_name,
+            subtitle,
+            author1,
+            author2,
+            author,
+            isbn,
+            publish_location,
+            publisher,
+            publish_date,
+            target_audience,
+            content_summary,
+            classification_number,
+            language,
+            hit_sensitive,
+            hit_problem_book,
+            is_whitelist_publisher,
+            risk_level,
+            sensitive_words,
+            detection_time,
+            check_status,
+            error_message,
+            created_time,
+            updated_time
+        FROM booklist_check_detail
+        WHERE task_id = #{taskId}
+        ORDER BY detail_id ASC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectDetailPage" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
+        SELECT
+            detail_id,
+            task_id,
+            book_number,
+            book_name,
+            subtitle,
+            author1,
+            author2,
+            author,
+            isbn,
+            publish_location,
+            publisher,
+            publish_date,
+            target_audience,
+            content_summary,
+            classification_number,
+            language,
+            hit_sensitive,
+            hit_problem_book,
+            is_whitelist_publisher,
+            risk_level,
+            sensitive_words,
+            detection_time,
+            check_status,
+            error_message,
+            created_time,
+            updated_time
+        FROM booklist_check_detail
+        <where>
+            task_id = #{taskId}
+            <if test="riskLevel != null and riskLevel != ''">
+                AND risk_level = #{riskLevel}
+            </if>
+            <if test="hasIssue != null and hasIssue">
+                AND (hit_sensitive = 1 OR hit_problem_book = 1 OR is_whitelist_publisher = 0)
+            </if>
+        </where>
+        ORDER BY detail_id ASC
+    </select>
+
     <select id="selectProblemBooksByTaskId" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
         SELECT
             detail_id,
@@ -127,7 +199,6 @@
         ORDER BY risk_level DESC, detail_id ASC
     </select>
 
-    <!-- 统计任务的检测结果 -->
     <select id="countResultByTaskId" resultType="java.util.Map">
         SELECT
             SUM(CASE WHEN hit_sensitive = 1 THEN 1 ELSE 0 END) AS sensitive_hits,
