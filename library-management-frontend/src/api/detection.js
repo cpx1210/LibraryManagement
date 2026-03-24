@@ -49,7 +49,14 @@ export function getCheckDetailsPage(taskId, params) {
   })
 }
 
-export function exportCheckResult(taskId) {
+export function startExportCheckResult(taskId) {
+  return request({
+    url: `/booklist-check/tasks/${taskId}/export`,
+    method: 'post'
+  })
+}
+
+export function downloadExportCheckResult(taskId) {
   return request({
     url: `/booklist-check/tasks/${taskId}/export`,
     method: 'get',

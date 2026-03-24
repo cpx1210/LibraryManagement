@@ -1,11 +1,16 @@
 package com.library.management.module.detection.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.library.management.module.collectionbook.entity.CollectionBook;
 import com.library.management.module.collectionbook.mapper.CollectionBookMapper;
 import com.library.management.module.detection.dto.BookItemDTO;
+import com.library.management.module.detection.dto.CheckResultExcelDTO;
 import com.library.management.module.detection.dto.CollectionBookCheckRequest;
 import com.library.management.module.detection.dto.DetectionResultDTO;
+import com.library.management.module.detection.dto.SensitiveHitDetailDTO;
 import com.library.management.module.detection.entity.BooklistCheckDetail;
 import com.library.management.module.detection.entity.BooklistCheckTask;
 import com.library.management.module.detection.mapper.BooklistCheckDetailMapper;
@@ -20,6 +25,13 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 /**
  * 检测任务异步执行器
@@ -31,6 +43,8 @@ public class BooklistCheckAsyncService {
     private static final int COLLECTION_BATCH_SIZE = 10_000;
     private static final int PROGRESS_UPDATE_BATCH_SIZE = 200;
     private static final int DETAIL_INSERT_BATCH_SIZE = 500;
+    private static final int EXPORT_BATCH_SIZE = 5_000;
+    private static final int EXPORT_MAX_ROWS_PER_SHEET = 1_000_000;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -45,6 +59,9 @@ public class BooklistCheckAsyncService {
 
     @Resource
     private CollectionBookMapper collectionBookMapper;
+
+    @Resource
+    private CheckResultExportStateService exportStateService;
 
     @Async
     public void processUploadTask(Long taskId) {
@@ -142,6 +159,62 @@ public class BooklistCheckAsyncService {
                     counters.nonWhitelistPubs, counters.totalProblemBooks);
         } catch (Exception e) {
             handleFailure(taskId, e);
+        }
+    }
+
+    @Async
+    public void processExportTask(Long taskId) {
+        log.info("开始异步导出检测结果: taskId={}", taskId);
+
+        Path tempFile = null;
+        try {
+            BooklistCheckTask task = taskMapper.selectById(taskId);
+            if (task == null) {
+                exportStateService.markFailed(taskId, "检测任务不存在");
+                return;
+            }
+            if (!"success".equals(task.getStatus())) {
+                exportStateService.markFailed(taskId, "检测尚未完成，暂时无法导出");
+                return;
+            }
+
+            exportStateService.markProcessing(taskId, 0);
+
+            Path targetFile = buildExportFilePath(task);
+            tempFile = buildTempExportFilePath(targetFile);
+            Files.createDirectories(targetFile.getParent());
+            Files.deleteIfExists(tempFile);
+
+            try (OutputStream outputStream = Files.newOutputStream(tempFile)) {
+                streamExportDetails(task, outputStream);
+            }
+
+            BooklistCheckTask latestTask = taskMapper.selectById(taskId);
+            if (latestTask == null) {
+                Files.deleteIfExists(tempFile);
+                exportStateService.clear(taskId);
+                log.info("导出任务已被删除，停止落盘导出文件: taskId={}", taskId);
+                return;
+            }
+
+            Files.move(tempFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+
+            latestTask.setResultFilePath(targetFile.toString());
+            latestTask.setUpdateTime(LocalDateTime.now());
+            taskMapper.updateById(latestTask);
+
+            exportStateService.markSuccess(taskId);
+            log.info("异步导出检测结果完成: taskId={}, path={}", taskId, targetFile);
+        } catch (Exception e) {
+            log.error("异步导出检测结果失败: taskId={}, message={}", taskId, e.getMessage(), e);
+            exportStateService.markFailed(taskId, e.getMessage());
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ioException) {
+                    log.warn("清理导出临时文件失败: taskId={}, message={}", taskId, ioException.getMessage());
+                }
+            }
         }
     }
 
@@ -487,6 +560,172 @@ public class BooklistCheckAsyncService {
             int end = Math.min(i + DETAIL_INSERT_BATCH_SIZE, details.size());
             detailMapper.batchInsert(details.subList(i, end));
         }
+    }
+
+    private void streamExportDetails(BooklistCheckTask task, OutputStream outputStream) throws IOException {
+        ExcelWriter excelWriter = EasyExcel.write(outputStream, CheckResultExcelDTO.class)
+                .autoCloseStream(false)
+                .build();
+
+        try {
+            Long lastDetailId = 0L;
+            int sheetNo = 0;
+            int rowsInCurrentSheet = 0;
+            long exportedRows = 0L;
+            int totalBooks = Math.max(1, safeInt(task.getTotalBooks()));
+            WriteSheet currentSheet = buildExportSheet(sheetNo);
+
+            while (true) {
+                List<BooklistCheckDetail> batch = detailMapper.selectExportBatchAfterDetailId(
+                        task.getTaskId(),
+                        lastDetailId,
+                        EXPORT_BATCH_SIZE);
+                if (batch.isEmpty()) {
+                    break;
+                }
+
+                lastDetailId = batch.get(batch.size() - 1).getDetailId();
+                List<CheckResultExcelDTO> exportRows = batch.stream()
+                        .map(this::convertToExcelDTO)
+                        .collect(Collectors.toList());
+
+                int fromIndex = 0;
+                while (fromIndex < exportRows.size()) {
+                    if (rowsInCurrentSheet >= EXPORT_MAX_ROWS_PER_SHEET) {
+                        sheetNo++;
+                        rowsInCurrentSheet = 0;
+                        currentSheet = buildExportSheet(sheetNo);
+                    }
+
+                    int writableCount = Math.min(
+                            EXPORT_MAX_ROWS_PER_SHEET - rowsInCurrentSheet,
+                            exportRows.size() - fromIndex);
+                    List<CheckResultExcelDTO> currentRows = exportRows.subList(fromIndex, fromIndex + writableCount);
+                    excelWriter.write(currentRows, currentSheet);
+
+                    rowsInCurrentSheet += writableCount;
+                    exportedRows += writableCount;
+                    fromIndex += writableCount;
+                }
+
+                int progress = Math.min(99, (int) ((exportedRows * 100L) / totalBooks));
+                exportStateService.markProcessing(task.getTaskId(), progress);
+            }
+
+            if (exportedRows == 0) {
+                excelWriter.write(new ArrayList<CheckResultExcelDTO>(), currentSheet);
+            }
+        } finally {
+            excelWriter.finish();
+        }
+    }
+
+    private WriteSheet buildExportSheet(int sheetNo) {
+        String sheetName = sheetNo == 0 ? "检测结果" : "检测结果-" + (sheetNo + 1);
+        return EasyExcel.writerSheet(sheetNo, sheetName).build();
+    }
+
+    private CheckResultExcelDTO convertToExcelDTO(BooklistCheckDetail detail) {
+        return CheckResultExcelDTO.builder()
+                .bookNumber(detail.getBookNumber())
+                .isbn(detail.getIsbn())
+                .bookName(detail.getBookName())
+                .subtitle(detail.getSubtitle())
+                .author1(detail.getAuthor1())
+                .author2(detail.getAuthor2())
+                .publishLocation(detail.getPublishLocation())
+                .publisher(detail.getPublisher())
+                .publishDate(detail.getPublishDate())
+                .targetAudience(detail.getTargetAudience())
+                .contentSummary(detail.getContentSummary())
+                .classificationNumber(detail.getClassificationNumber())
+                .language(detail.getLanguage())
+                .riskLevelText(getRiskLevelText(detail.getRiskLevel()))
+                .hitSensitiveText(detail.getHitSensitive() == 1 ? "是" : "否")
+                .hitProblemBookText(detail.getHitProblemBook() == 1 ? "是" : "否")
+                .whitelistPublisherText(detail.getIsWhitelistPublisher() == 1 ? "是" : "否")
+                .remark(buildExportRemark(detail))
+                .build();
+    }
+
+    private String buildExportRemark(BooklistCheckDetail detail) {
+        StringBuilder remark = new StringBuilder();
+
+        if (detail.getHitSensitive() == 1) {
+            remark.append("【敏感词】");
+            String sensitiveWordsText = extractSensitiveWordsForDisplay(detail.getSensitiveWords());
+            if (StringUtils.hasText(sensitiveWordsText)) {
+                remark.append("命中敏感词：").append(sensitiveWordsText);
+            }
+        }
+
+        if (detail.getHitProblemBook() == 1) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【问题书目】");
+        }
+
+        if (detail.getIsWhitelistPublisher() == 0) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【非白名单出版社】");
+        }
+
+        if (remark.length() == 0) {
+            remark.append("无问题");
+        }
+
+        return remark.toString();
+    }
+
+    private String extractSensitiveWordsForDisplay(String sensitiveWordsRaw) {
+        if (!StringUtils.hasText(sensitiveWordsRaw)) {
+            return null;
+        }
+
+        if (!sensitiveWordsRaw.startsWith("[")) {
+            return sensitiveWordsRaw;
+        }
+
+        try {
+            List<SensitiveHitDetailDTO> hitDetails = objectMapper.readValue(
+                    sensitiveWordsRaw,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, SensitiveHitDetailDTO.class));
+            return hitDetails.stream()
+                    .map(SensitiveHitDetailDTO::getKeyword)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(Collectors.joining(","));
+        } catch (Exception e) {
+            log.warn("解析导出敏感词详情失败，使用原始内容：{}", e.getMessage());
+            return sensitiveWordsRaw;
+        }
+    }
+
+    private String getRiskLevelText(String riskLevel) {
+        if (riskLevel == null) {
+            return "";
+        }
+
+        return switch (riskLevel) {
+            case "high" -> "高风险";
+            case "medium" -> "中风险";
+            case "low" -> "低风险";
+            default -> riskLevel;
+        };
+    }
+
+    private Path buildExportFilePath(BooklistCheckTask task) {
+        String safeTaskName = task.getTaskName() == null ? "task-" + task.getTaskId() : task.getTaskName()
+                .replaceAll("[\\\\/:*?\"<>|]", "_");
+        Path exportDir = Paths.get(System.getProperty("java.io.tmpdir"), "library-management", "exports");
+        return exportDir.resolve("task-" + task.getTaskId() + "-" + safeTaskName + "_检测结果.xlsx");
+    }
+
+    private Path buildTempExportFilePath(Path targetFile) {
+        return targetFile.resolveSibling(targetFile.getFileName() + ".tmp");
     }
 
     private int boolToInt(Boolean value) {

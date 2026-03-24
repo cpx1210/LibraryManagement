@@ -124,6 +124,41 @@
         LIMIT #{offset}, #{pageSize}
     </select>
 
+    <select id="selectExportBatchAfterDetailId" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
+        SELECT
+            detail_id,
+            task_id,
+            book_number,
+            book_name,
+            subtitle,
+            author1,
+            author2,
+            author,
+            isbn,
+            publish_location,
+            publisher,
+            publish_date,
+            target_audience,
+            content_summary,
+            classification_number,
+            language,
+            hit_sensitive,
+            hit_problem_book,
+            is_whitelist_publisher,
+            risk_level,
+            sensitive_words,
+            detection_time,
+            check_status,
+            error_message,
+            created_time,
+            updated_time
+        FROM booklist_check_detail
+        WHERE task_id = #{taskId}
+          AND detail_id > #{lastDetailId}
+        ORDER BY detail_id ASC
+        LIMIT #{pageSize}
+    </select>
+
     <select id="selectDetailPage" resultType="com.library.management.module.detection.entity.BooklistCheckDetail">
         SELECT
             detail_id,

@@ -84,7 +84,15 @@ public interface BooklistCheckService {
      * @param taskId   任务ID
      * @param response HTTP响应
      */
-    void exportCheckResult(Long taskId, HttpServletResponse response);
+    BooklistCheckTaskDTO startExportCheckResult(Long taskId);
+
+    /**
+     * 下载已经生成的检测结果文件
+     *
+     * @param taskId   任务ID
+     * @param response HTTP响应
+     */
+    void downloadExportCheckResult(Long taskId, HttpServletResponse response);
 
     /**
      * 下载检测模板

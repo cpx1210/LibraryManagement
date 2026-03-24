@@ -1,5 +1,8 @@
 package com.library.management.module.detection.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.library.management.common.annotation.Log;
@@ -27,6 +30,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -45,7 +51,12 @@ import java.util.stream.Collectors;
 public class BooklistCheckServiceImpl implements BooklistCheckService {
 
     private static final int DETECTION_BATCH_SIZE = 10_000;
+    private static final int EXPORT_BATCH_SIZE = 5_000;
+    private static final int EXPORT_MAX_ROWS_PER_SHEET = 1_000_000;
     private static final String TASK_REJECTED_MESSAGE = "检测任务排队已满，请稍后重试";
+    private static final String EXPORT_REJECTED_MESSAGE = "导出任务排队已满，请稍后重试";
+
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Resource
     private BooklistCheckTaskMapper taskMapper;
@@ -61,6 +72,9 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
     @Resource
     private BooklistCheckAsyncService asyncService;
+
+    @Resource
+    private CheckResultExportStateService exportStateService;
 
     /**
      * 上传书单并创建检测任务
@@ -459,34 +473,65 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     }
 
     @Override
-    @Log(module = "detection", operationType = "export")
-    public void exportCheckResult(Long taskId, HttpServletResponse response) {
-        log.info("导出检测结果：taskId={}", taskId);
+    public BooklistCheckTaskDTO startExportCheckResult(Long taskId) {
+        log.info("创建检测结果导出任务：taskId={}", taskId);
 
+        BooklistCheckTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException("检测任务不存在");
+        }
+        if (!"success".equals(task.getStatus())) {
+            throw new BusinessException("检测尚未完成，暂时无法导出");
+        }
+
+        if (hasReadyExportFile(task)) {
+            log.info("导出文件已存在，直接复用：taskId={}", taskId);
+            return convertToDTO(task);
+        }
+
+        clearMissingExportPath(task);
+
+        CheckResultExportStateService.ExportStateSnapshot snapshot = exportStateService.snapshot(
+                taskId,
+                task.getResultFilePath());
+        if ("pending".equals(snapshot.getStatus()) || "processing".equals(snapshot.getStatus())) {
+            return convertToDTO(taskMapper.selectById(taskId));
+        }
+
+        exportStateService.markPending(taskId);
         try {
-            // 1. 查询任务信息
-            BooklistCheckTask task = taskMapper.selectById(taskId);
-            if (task == null) {
-                throw new BusinessException("检测任务不存在");
-            }
+            asyncService.processExportTask(taskId);
+        } catch (RejectedExecutionException ex) {
+            log.warn("导出任务提交被拒绝：taskId={}, message={}", taskId, ex.getMessage());
+            exportStateService.markFailed(taskId, EXPORT_REJECTED_MESSAGE);
+        }
 
-            // 2. 查询检测结果明细
-            List<BooklistCheckDetail> details = detailMapper.selectByTaskId(taskId);
+        return convertToDTO(taskMapper.selectById(taskId));
+    }
 
-            // 3. 设置响应头
-            String filename = URLEncoder.encode(task.getTaskName() + "_检测结果.xlsx", StandardCharsets.UTF_8);
-            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setCharacterEncoding("utf-8");
-            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + filename);
+    @Override
+    public void downloadExportCheckResult(Long taskId, HttpServletResponse response) {
+        BooklistCheckTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException("检测任务不存在");
+        }
+        if (!hasReadyExportFile(task)) {
+            throw new BusinessException("导出文件尚未生成，请稍后再试");
+        }
 
-            // 4. 使用 Apache POI 导出（带颜色标注）
-            exportWithColors(details, response.getOutputStream());
+        Path exportFile = Paths.get(task.getResultFilePath());
+        String filename = URLEncoder.encode(task.getTaskName() + "_检测结果.xlsx", StandardCharsets.UTF_8);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + filename);
 
-            log.info("导出成功：{} 条记录", details.size());
-
+        try (InputStream inputStream = Files.newInputStream(exportFile);
+             OutputStream outputStream = response.getOutputStream()) {
+            inputStream.transferTo(outputStream);
+            outputStream.flush();
         } catch (IOException e) {
-            log.error("导出失败：{}", e.getMessage(), e);
-            throw new BusinessException("导出失败：" + e.getMessage());
+            log.error("下载导出文件失败：taskId={}, message={}", taskId, e.getMessage(), e);
+            throw new BusinessException("下载导出文件失败：" + e.getMessage());
         }
     }
 
@@ -520,6 +565,10 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteTask(Long taskId) {
         log.info("删除检测任务：taskId={}", taskId);
+
+        BooklistCheckTask task = taskMapper.selectById(taskId);
+        deleteExportFileIfExists(task);
+        exportStateService.clear(taskId);
 
         // 1. 删除任务
         taskMapper.deleteById(taskId);
@@ -720,6 +769,144 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         }
     }
 
+    private void streamExportDetails(Long taskId, HttpServletResponse response) throws IOException {
+        ExcelWriter excelWriter = EasyExcel.write(response.getOutputStream(), CheckResultExcelDTO.class)
+                .autoCloseStream(false)
+                .build();
+        try {
+            Long lastDetailId = 0L;
+            int sheetNo = 0;
+            int rowsInCurrentSheet = 0;
+            long exportedRows = 0L;
+            WriteSheet currentSheet = buildExportSheet(sheetNo);
+
+            while (true) {
+                List<BooklistCheckDetail> batch = detailMapper.selectExportBatchAfterDetailId(
+                        taskId,
+                        lastDetailId,
+                        EXPORT_BATCH_SIZE);
+                if (batch.isEmpty()) {
+                    break;
+                }
+
+                lastDetailId = batch.get(batch.size() - 1).getDetailId();
+                List<CheckResultExcelDTO> exportRows = batch.stream()
+                        .map(this::convertToExcelDTO)
+                        .collect(Collectors.toList());
+
+                int fromIndex = 0;
+                while (fromIndex < exportRows.size()) {
+                    if (rowsInCurrentSheet >= EXPORT_MAX_ROWS_PER_SHEET) {
+                        sheetNo++;
+                        rowsInCurrentSheet = 0;
+                        currentSheet = buildExportSheet(sheetNo);
+                    }
+
+                    int writableCount = Math.min(
+                            EXPORT_MAX_ROWS_PER_SHEET - rowsInCurrentSheet,
+                            exportRows.size() - fromIndex);
+                    List<CheckResultExcelDTO> currentRows = exportRows.subList(fromIndex, fromIndex + writableCount);
+                    excelWriter.write(currentRows, currentSheet);
+
+                    rowsInCurrentSheet += writableCount;
+                    exportedRows += writableCount;
+                    fromIndex += writableCount;
+                }
+            }
+
+            if (exportedRows == 0) {
+                excelWriter.write(new ArrayList<CheckResultExcelDTO>(), currentSheet);
+            }
+        } finally {
+            excelWriter.finish();
+        }
+        response.flushBuffer();
+    }
+
+    private WriteSheet buildExportSheet(int sheetNo) {
+        String sheetName = sheetNo == 0 ? "检测结果" : "检测结果-" + (sheetNo + 1);
+        return EasyExcel.writerSheet(sheetNo, sheetName).build();
+    }
+
+    private CheckResultExcelDTO convertToExcelDTO(BooklistCheckDetail detail) {
+        return CheckResultExcelDTO.builder()
+                .bookNumber(detail.getBookNumber())
+                .isbn(detail.getIsbn())
+                .bookName(detail.getBookName())
+                .subtitle(detail.getSubtitle())
+                .author1(detail.getAuthor1())
+                .author2(detail.getAuthor2())
+                .publishLocation(detail.getPublishLocation())
+                .publisher(detail.getPublisher())
+                .publishDate(detail.getPublishDate())
+                .targetAudience(detail.getTargetAudience())
+                .contentSummary(detail.getContentSummary())
+                .classificationNumber(detail.getClassificationNumber())
+                .language(detail.getLanguage())
+                .riskLevelText(getRiskLevelText(detail.getRiskLevel()))
+                .hitSensitiveText(detail.getHitSensitive() == 1 ? "是" : "否")
+                .hitProblemBookText(detail.getHitProblemBook() == 1 ? "是" : "否")
+                .whitelistPublisherText(detail.getIsWhitelistPublisher() == 1 ? "是" : "否")
+                .remark(buildExportRemark(detail))
+                .build();
+    }
+
+    private String buildExportRemark(BooklistCheckDetail detail) {
+        StringBuilder remark = new StringBuilder();
+
+        if (detail.getHitSensitive() == 1) {
+            remark.append("【敏感词】");
+            String sensitiveWordsText = extractSensitiveWordsForDisplay(detail.getSensitiveWords());
+            if (StringUtils.hasText(sensitiveWordsText)) {
+                remark.append("命中敏感词：").append(sensitiveWordsText);
+            }
+        }
+
+        if (detail.getHitProblemBook() == 1) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【问题书目】");
+        }
+
+        if (detail.getIsWhitelistPublisher() == 0) {
+            if (remark.length() > 0) {
+                remark.append(" | ");
+            }
+            remark.append("【非白名单出版社】");
+        }
+
+        if (remark.length() == 0) {
+            remark.append("无问题");
+        }
+
+        return remark.toString();
+    }
+
+    private String extractSensitiveWordsForDisplay(String sensitiveWordsRaw) {
+        if (!StringUtils.hasText(sensitiveWordsRaw)) {
+            return null;
+        }
+
+        if (!sensitiveWordsRaw.startsWith("[")) {
+            return sensitiveWordsRaw;
+        }
+
+        try {
+            List<SensitiveHitDetailDTO> hitDetails = objectMapper.readValue(
+                    sensitiveWordsRaw,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, SensitiveHitDetailDTO.class));
+            return hitDetails.stream()
+                    .map(SensitiveHitDetailDTO::getKeyword)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(Collectors.joining(","));
+        } catch (Exception e) {
+            log.warn("解析导出敏感词详情失败，使用原始内容：{}", e.getMessage());
+            return sensitiveWordsRaw;
+        }
+    }
+
     private void triggerUploadTaskAfterCommit(Long taskId) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -799,6 +986,15 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .errorMessage(task.getErrorMessage())
                 .build();
 
+        CheckResultExportStateService.ExportStateSnapshot exportSnapshot = exportStateService.snapshot(
+                task.getTaskId(),
+                task.getResultFilePath());
+        dto.setExportStatus(exportSnapshot.getStatus());
+        dto.setExportStatusText(exportSnapshot.getStatusText());
+        dto.setExportProgressPercent(exportSnapshot.getProgressPercent());
+        dto.setExportErrorMessage(exportSnapshot.getErrorMessage());
+        dto.setExportFileReady(exportSnapshot.isFileReady());
+
         dto.setProgressPercent(totalBooks <= 0 ? 0 : Math.min(100, (int) ((processedBooks * 100L) / totalBooks)));
 
         // 计算耗时
@@ -808,6 +1004,39 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         }
 
         return dto;
+    }
+
+    private boolean hasReadyExportFile(BooklistCheckTask task) {
+        return task != null
+                && StringUtils.hasText(task.getResultFilePath())
+                && Files.exists(Paths.get(task.getResultFilePath()));
+    }
+
+    private void clearMissingExportPath(BooklistCheckTask task) {
+        if (task == null || !StringUtils.hasText(task.getResultFilePath())) {
+            return;
+        }
+
+        Path exportFile = Paths.get(task.getResultFilePath());
+        if (Files.exists(exportFile)) {
+            return;
+        }
+
+        task.setResultFilePath(null);
+        task.setUpdateTime(LocalDateTime.now());
+        taskMapper.updateById(task);
+    }
+
+    private void deleteExportFileIfExists(BooklistCheckTask task) {
+        if (task == null || !StringUtils.hasText(task.getResultFilePath())) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(Paths.get(task.getResultFilePath()));
+        } catch (IOException e) {
+            log.warn("删除导出文件失败：taskId={}, message={}", task.getTaskId(), e.getMessage());
+        }
     }
 
     /**

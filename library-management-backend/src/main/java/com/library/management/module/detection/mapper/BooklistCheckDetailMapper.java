@@ -25,6 +25,11 @@ public interface BooklistCheckDetailMapper extends BaseMapper<BooklistCheckDetai
             @Param("offset") long offset,
             @Param("pageSize") int pageSize);
 
+    List<BooklistCheckDetail> selectExportBatchAfterDetailId(
+            @Param("taskId") Long taskId,
+            @Param("lastDetailId") Long lastDetailId,
+            @Param("pageSize") int pageSize);
+
     IPage<BooklistCheckDetail> selectDetailPage(
             Page<BooklistCheckDetail> page,
             @Param("taskId") Long taskId,

@@ -154,13 +154,25 @@ public class BooklistCheckController {
     /**
      * 导出检测结果
      */
-    @Operation(summary = "导出检测结果", description = "导出检测结果为 Excel 文件（带颜色标注）")
+    @Operation(summary = "创建导出任务", description = "后台生成检测结果 Excel 文件，前端可轮询进度并在完成后下载")
+    @PostMapping("/tasks/{taskId}/export")
+    public Result<BooklistCheckTaskDTO> startExportCheckResult(
+            @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId) {
+
+        BooklistCheckTaskDTO task = booklistCheckService.startExportCheckResult(taskId);
+        return Result.success(task);
+    }
+
+    /**
+     * 下载检测结果
+     */
+    @Operation(summary = "下载检测结果", description = "下载后台已生成的检测结果 Excel 文件")
     @GetMapping("/tasks/{taskId}/export")
-    public void exportCheckResult(
+    public void downloadExportCheckResult(
             @Parameter(description = "任务 ID", required = true) @PathVariable Long taskId,
             HttpServletResponse response) {
 
-        booklistCheckService.exportCheckResult(taskId, response);
+        booklistCheckService.downloadExportCheckResult(taskId, response);
     }
 
     /**

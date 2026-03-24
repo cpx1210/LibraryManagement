@@ -5,9 +5,9 @@
         <div class="card-header">
           <span>任务信息</span>
           <div class="header-actions">
-            <el-button type="success" @click="handleExport">
+            <el-button type="success" :loading="exportStarting || isExportRunning(taskInfo)" @click="handleExport">
               <el-icon><Download /></el-icon>
-              导出 Excel 报告
+              {{ getExportButtonText() }}
             </el-button>
             <el-button @click="handleBack">
               <el-icon><Back /></el-icon>
@@ -43,6 +43,12 @@
           <span v-else>-</span>
         </el-descriptions-item>
       </el-descriptions>
+      <div v-if="taskInfo?.exportStatus === 'pending' || taskInfo?.exportStatus === 'processing'" class="export-tip">
+        导出文件正在后台生成，完成后会自动下载。
+      </div>
+      <div v-if="taskInfo?.exportStatus === 'failed'" class="export-tip export-error">
+        {{ taskInfo.exportErrorMessage || '导出过程中发生错误，请重新尝试。' }}
+      </div>
     </el-card>
 
     <el-row :gutter="20" class="stats-row">
@@ -205,7 +211,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -217,7 +223,8 @@ import {
   WarnTriangleFilled
 } from '@element-plus/icons-vue'
 import {
-  exportCheckResult,
+  startExportCheckResult,
+  downloadExportCheckResult,
   getCheckDetailsPage,
   getTaskDetail
 } from '@/api/detection'
@@ -231,6 +238,10 @@ const resultList = ref([])
 const loading = ref(false)
 const riskFilter = ref('')
 const onlyIssue = ref(true)
+const exportStarting = ref(false)
+const pendingExportDownload = ref(false)
+
+let pollingTimer = null
 
 const pagination = ref({
   pageNum: 1,
@@ -243,6 +254,12 @@ const loadTaskDetail = async () => {
     const res = await getTaskDetail(taskId.value)
     if (res.code === 200) {
       taskInfo.value = res.data
+      await tryAutoDownload(res.data)
+      if (isExportRunning(res.data)) {
+        startPolling()
+      } else {
+        stopPolling()
+      }
     } else {
       ElMessage.error(res.message || '加载任务详情失败')
     }
@@ -292,18 +309,38 @@ const handlePageChange = () => {
 }
 
 const handleExport = async () => {
+  if (taskInfo.value?.exportFileReady) {
+    await downloadExportFile(false)
+    return
+  }
+
+  exportStarting.value = true
   try {
-    const blob = await exportCheckResult(taskId.value)
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `检测结果_${taskId.value}.xlsx`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
+    const res = await startExportCheckResult(taskId.value)
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '创建导出任务失败')
+      return
+    }
+
+    taskInfo.value = res.data
+    if (res.data.exportStatus === 'failed') {
+      ElMessage.error(res.data.exportErrorMessage || '创建导出任务失败')
+      return
+    }
+
+    pendingExportDownload.value = true
+    if (res.data.exportFileReady) {
+      await downloadExportFile(false)
+      return
+    }
+
+    startPolling()
+    ElMessage.success(res.data.exportStatus === 'pending' ? '已加入导出队列，完成后会自动下载' : '后台导出已开始，完成后会自动下载')
   } catch (error) {
     console.error('导出失败:', error)
-    ElMessage.error('导出失败，请重试')
+    ElMessage.error(error.message || '创建导出任务失败，请重试')
+  } finally {
+    exportStarting.value = false
   }
 }
 
@@ -341,6 +378,60 @@ const getRiskLevelType = (riskLevel) => {
   return typeMap[riskLevel] || 'info'
 }
 
+const isExportRunning = (task) => ['pending', 'processing'].includes(task?.exportStatus)
+
+const getExportButtonText = () => {
+  if (taskInfo.value?.exportFileReady) return '下载导出文件'
+  if (taskInfo.value?.exportStatus === 'pending') return '导出排队中'
+  if (taskInfo.value?.exportStatus === 'processing') return `导出中 ${taskInfo.value?.exportProgressPercent || 0}%`
+  if (taskInfo.value?.exportStatus === 'failed') return '重新导出'
+  return '导出 Excel 报告'
+}
+
+const downloadExportFile = async (silent = true) => {
+  const blob = await downloadExportCheckResult(taskId.value)
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `检测结果_${taskId.value}.xlsx`
+  link.click()
+  window.URL.revokeObjectURL(url)
+  pendingExportDownload.value = false
+  if (!silent) {
+    ElMessage.success('导出文件下载成功')
+  }
+}
+
+const tryAutoDownload = async (task) => {
+  if (!task?.exportFileReady || !pendingExportDownload.value) {
+    return
+  }
+
+  try {
+    await downloadExportFile(true)
+    ElMessage.success('导出完成，文件已开始下载')
+  } catch (error) {
+    console.error('自动下载导出文件失败：', error)
+    ElMessage.error('导出文件已生成，但下载失败，请手动重试')
+  }
+}
+
+const startPolling = () => {
+  if (pollingTimer) {
+    return
+  }
+  pollingTimer = setInterval(() => {
+    loadTaskDetail()
+  }, 2000)
+}
+
+const stopPolling = () => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
 const formatDuration = (seconds) => {
   if (seconds < 60) {
     return `${seconds} 秒`
@@ -370,6 +461,13 @@ const formatSensitiveDetail = (detail) => {
 onMounted(() => {
   loadTaskDetail()
   loadCheckDetails()
+  if (isExportRunning(taskInfo.value)) {
+    startPolling()
+  }
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>
 
@@ -392,6 +490,16 @@ onMounted(() => {
 .header-actions {
   display: flex;
   gap: 10px;
+}
+
+.export-tip {
+  margin-top: 16px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.export-error {
+  color: #f56c6c;
 }
 
 .danger-text {

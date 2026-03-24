@@ -63,4 +63,14 @@ public class BooklistCheckTaskDTO {
     private String errorMessage;
 
     private Long durationSeconds;
+
+    private String exportStatus;
+
+    private String exportStatusText;
+
+    private Integer exportProgressPercent;
+
+    private String exportErrorMessage;
+
+    private Boolean exportFileReady;
 }

@@ -146,11 +146,32 @@
               <el-icon><View /></el-icon>
               查看详细结果
             </el-button>
-            <el-button type="success" @click="handleExport(currentTask.taskId)">
+            <el-button
+              type="success"
+              :loading="isExportButtonLoading(currentTask)"
+              @click="handleExport(currentTask.taskId)"
+            >
               <el-icon><Download /></el-icon>
-              导出 Excel 报告
+              {{ getExportButtonText(currentTask) }}
             </el-button>
           </div>
+          <p
+            v-if="currentTask.exportStatus === 'pending' || currentTask.exportStatus === 'processing'"
+            class="progress-tip"
+          >
+            导出文件正在后台生成，完成后会自动下载。
+          </p>
+          <el-alert
+            v-if="currentTask.exportStatus === 'failed'"
+            title="导出失败"
+            type="error"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              <p>{{ currentTask.exportErrorMessage || '导出过程中发生错误，请重新尝试。' }}</p>
+            </template>
+          </el-alert>
         </div>
 
         <div v-if="currentTask.status === 'failed'" class="error-info">
@@ -217,9 +238,10 @@
               v-if="row.status === 'success'"
               type="success"
               link
+              :disabled="isExportButtonLoading(row)"
               @click="handleExport(row.taskId)"
             >
-              导出
+              {{ getExportButtonText(row) }}
             </el-button>
             <el-button
               v-if="row.status === 'processing'"
@@ -254,7 +276,8 @@ import {
   getTaskList,
   getTaskDetail,
   downloadTemplate,
-  exportCheckResult,
+  startExportCheckResult,
+  downloadExportCheckResult,
   cancelTask
 } from '@/api/detection'
 
@@ -268,6 +291,8 @@ const uploadAction = ''
 
 const currentTask = ref(null)
 const recentTasks = ref([])
+const exportStartingTaskIds = ref({})
+const pendingExportDownloadTaskIds = new Set()
 
 let pollingTimer = null
 
@@ -338,9 +363,10 @@ const loadTask = async (taskId, shouldPoll = true) => {
   }
 
   currentTask.value = res.data
-  if (shouldPoll && isRunning(res.data.status)) {
+  await tryAutoDownload(res.data)
+  if (shouldPoll && isTaskActive(res.data)) {
     startPolling(taskId)
-  } else if (!isRunning(res.data.status)) {
+  } else if (!isTaskActive(res.data) && !recentTasks.value.some(isTaskActive)) {
     stopPolling()
   }
 }
@@ -351,7 +377,7 @@ const startPolling = (taskId) => {
     try {
       await loadTask(taskId, false)
       await loadRecentTasks()
-      if (!currentTask.value || !isRunning(currentTask.value.status)) {
+      if ((!currentTask.value || !isTaskActive(currentTask.value)) && !recentTasks.value.some(isTaskActive)) {
         stopPolling()
       }
     } catch (error) {
@@ -372,6 +398,9 @@ const loadRecentTasks = async () => {
     const res = await getTaskList({ pageNum: 1, pageSize: 5 })
     if (res.code === 200) {
       recentTasks.value = res.data.records || []
+      for (const task of recentTasks.value) {
+        await tryAutoDownload(task)
+      }
     }
   } catch (error) {
     console.error('加载最近任务失败：', error)
@@ -407,18 +436,44 @@ const handleFocusTask = async (taskId) => {
 }
 
 const handleExport = async (taskId) => {
+  const targetTask = currentTask.value?.taskId === taskId
+    ? currentTask.value
+    : recentTasks.value.find(task => task.taskId === taskId)
+
+  if (targetTask?.exportFileReady) {
+    await downloadExportFile(taskId, false)
+    return
+  }
+
+  setExportStarting(taskId, true)
   try {
-    const blob = await exportCheckResult(taskId)
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `检测结果_${taskId}.xlsx`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
+    const res = await startExportCheckResult(taskId)
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '创建导出任务失败')
+      return
+    }
+
+    currentTask.value = res.data
+    if (res.data.exportStatus === 'failed') {
+      ElMessage.error(res.data.exportErrorMessage || '创建导出任务失败')
+      return
+    }
+
+    pendingExportDownloadTaskIds.add(taskId)
+    await loadRecentTasks()
+    await loadTask(taskId, true)
+
+    if (res.data.exportFileReady) {
+      await downloadExportFile(taskId, false)
+      return
+    }
+
+    ElMessage.success(res.data.exportStatus === 'pending' ? '已加入导出队列，完成后会自动下载' : '后台导出已开始，完成后会自动下载')
   } catch (error) {
     console.error('导出失败：', error)
-    ElMessage.error('导出失败，请重试')
+    ElMessage.error(error.message || '创建导出任务失败，请重试')
+  } finally {
+    setExportStarting(taskId, false)
   }
 }
 
@@ -496,6 +551,64 @@ const getProgressText = (task) => {
   return `等待执行，计划 ${batch}`
 }
 
+const isDetectionRunning = (status) => ['pending', 'processing'].includes(status)
+
+const isExportRunning = (task) => ['pending', 'processing'].includes(task?.exportStatus)
+
+const isTaskActive = (task) => isDetectionRunning(task?.status) || isExportRunning(task)
+
+const isExportButtonLoading = (task) => {
+  if (!task) return false
+  return Boolean(exportStartingTaskIds.value[task.taskId]) || isExportRunning(task)
+}
+
+const getExportButtonText = (task) => {
+  if (!task) return '导出 Excel 报告'
+  if (task.exportFileReady) return '下载导出文件'
+  if (task.exportStatus === 'pending') return '导出排队中'
+  if (task.exportStatus === 'processing') return `导出中 ${task.exportProgressPercent || 0}%`
+  if (task.exportStatus === 'failed') return '重新导出'
+  return '导出 Excel 报告'
+}
+
+const setExportStarting = (taskId, loading) => {
+  const nextState = { ...exportStartingTaskIds.value }
+  if (loading) {
+    nextState[taskId] = true
+  } else {
+    delete nextState[taskId]
+  }
+  exportStartingTaskIds.value = nextState
+}
+
+const downloadExportFile = async (taskId, silent = true) => {
+  const blob = await downloadExportCheckResult(taskId)
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `检测结果_${taskId}.xlsx`
+  link.click()
+  window.URL.revokeObjectURL(url)
+  pendingExportDownloadTaskIds.delete(taskId)
+  if (!silent) {
+    ElMessage.success('导出文件下载成功')
+  }
+}
+
+const tryAutoDownload = async (task) => {
+  if (!task || !pendingExportDownloadTaskIds.has(task.taskId) || !task.exportFileReady) {
+    return
+  }
+
+  try {
+    await downloadExportFile(task.taskId, true)
+    ElMessage.success('导出完成，文件已开始下载')
+  } catch (error) {
+    console.error('自动下载导出文件失败：', error)
+    ElMessage.error('导出文件已生成，但下载失败，请手动重试')
+  }
+}
+
 const formatBatch = (currentBatch, totalBatches) => {
   const current = currentBatch || 0
   const total = totalBatches || 0
@@ -506,8 +619,6 @@ const formatNumber = (value) => {
   return Number(value || 0).toLocaleString('zh-CN')
 }
 
-const isRunning = (status) => ['pending', 'processing'].includes(status)
-
 onMounted(async () => {
   await loadRecentTasks()
   const taskId = Number(route.query.taskId)
@@ -516,7 +627,7 @@ onMounted(async () => {
     return
   }
 
-  const runningTask = recentTasks.value.find(task => isRunning(task.status))
+  const runningTask = recentTasks.value.find(task => isTaskActive(task))
   if (runningTask) {
     await loadTask(runningTask.taskId, true)
   }
