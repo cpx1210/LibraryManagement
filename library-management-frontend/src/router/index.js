@@ -6,6 +6,15 @@ import { createRouter, createWebHistory } from 'vue-router'
  */
 const routes = [
   {
+    path: '/',
+    name: 'PublicUpload',
+    component: () => import('@/views/SimpleUploadHome.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '书单提交'
+    }
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/Login.vue'),
@@ -15,7 +24,7 @@ const routes = [
     }
   },
   {
-    path: '/',
+    path: '/app',
     name: 'Layout',
     component: () => import('@/views/Home.vue'),
     redirect: '/dashboard',
@@ -130,7 +139,7 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',  // 404 页面
     name: 'NotFound',
-    redirect: '/login'
+    redirect: '/'
   }
 ]
 
@@ -175,8 +184,8 @@ router.beforeEach((to, from, next) => {
     // 不需要登录的页面（如登录页）
     if (to.path === '/login' && token) {
       // 已登录用户访问登录页，重定向到首页
-      console.log('已登录，跳转到首页')
-      next('/')
+      console.log('已登录，跳转到后台首页')
+      next('/dashboard')
     } else {
       // 允许访问
       next()

@@ -31,7 +31,8 @@ export function getPublisherWhitelistList(params) {
   return request({
     url: '/publisher-whitelist',
     method: 'get',
-    params
+    params,
+    timeout: 0
   })
 }
 
@@ -104,7 +105,8 @@ export function importPublisherWhitelists(formData) {
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 0
   })
 }
 
@@ -118,7 +120,8 @@ export function exportPublisherWhitelists(params) {
     url: '/publisher-whitelist/export',
     method: 'get',
     params,
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -130,7 +133,8 @@ export function downloadTemplate() {
   return request({
     url: '/publisher-whitelist/template',
     method: 'get',
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -141,6 +145,7 @@ export function downloadTemplate() {
 export function getAllActivePublisherWhitelists() {
   return request({
     url: '/publisher-whitelist/all',
-    method: 'get'
+    method: 'get',
+    timeout: 0
   })
 }

@@ -1,4 +1,6 @@
 target/
+!target/
+!target/library-management-backend-*.jar
 *.log
 .idea/
 .vscode/

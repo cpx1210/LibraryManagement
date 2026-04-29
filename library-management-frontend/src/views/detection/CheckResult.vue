@@ -19,12 +19,17 @@
 
       <el-descriptions v-if="taskInfo" :column="3" border>
         <el-descriptions-item label="任务名称">{{ taskInfo.taskName }}</el-descriptions-item>
+        <el-descriptions-item label="上传人">{{ taskInfo.submitterName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="提交时间">{{ taskInfo.submitTime }}</el-descriptions-item>
         <el-descriptions-item label="任务状态">
           <el-tag :type="getStatusType(taskInfo.status)">
             {{ taskInfo.statusText }}
           </el-tag>
         </el-descriptions-item>
+        <el-descriptions-item label="部门">{{ taskInfo.submitterDepartment || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="工号">{{ taskInfo.submitterEmployeeNo || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="邮箱">{{ taskInfo.submitterEmail || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="手机">{{ taskInfo.submitterMobile || '-' }}</el-descriptions-item>
         <el-descriptions-item label="总书目数">{{ taskInfo.totalBooks }}</el-descriptions-item>
         <el-descriptions-item label="命中敏感词">
           <span class="danger-text">{{ taskInfo.sensitiveHits }}</span>
@@ -127,9 +132,13 @@
       <div class="table-tip">
         当前结果采用服务端分页加载，避免一次性返回超大数据导致页面卡顿。
       </div>
+      <div class="table-tip">
+        首次打开大任务结果时，服务器可能需要较长时间返回第一页数据，请耐心等待，不要重复点击。
+      </div>
 
       <el-table
         v-loading="loading"
+        element-loading-text="检测结果较多，正在分页加载，请稍候..."
         :data="resultList"
         stripe
         :row-class-name="getRowClassName"

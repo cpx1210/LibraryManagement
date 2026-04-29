@@ -36,7 +36,8 @@ export function getUserList(params) {
     params: {
       ...params,
       _t: Date.now() // 添加时间戳防止缓存
-    }
+    },
+    timeout: 0
   })
 }
 

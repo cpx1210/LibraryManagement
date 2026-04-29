@@ -143,7 +143,8 @@ export function importCollectionBooks(formData) {
         data: formData,
         headers: {
             'Content-Type': 'multipart/form-data'
-        }
+        },
+        timeout: 0
     })
 }
 
@@ -157,7 +158,8 @@ export function exportCollectionBooks(params) {
         url: '/collection-books/export',
         method: 'get',
         params,
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 0
     })
 }
 
@@ -169,7 +171,8 @@ export function downloadCollectionBookTemplate() {
     return request({
         url: '/collection-books/template',
         method: 'get',
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 0
     })
 }
 
@@ -229,7 +232,8 @@ export function markAsNormal(barcode) {
 export function getCollectionBookStatistics() {
     return request({
         url: '/collection-books/statistics',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 
@@ -242,7 +246,8 @@ export function checkCollectionBooks(params) {
     return request({
         url: '/booklist-check/check-from-collection',
         method: 'post',
-        data: params
+        data: params,
+        timeout: 0
     })
 }
 

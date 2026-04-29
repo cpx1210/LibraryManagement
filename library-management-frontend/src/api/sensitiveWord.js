@@ -31,7 +31,8 @@ export function getSensitiveWordList(params) {
   return request({
     url: '/sensitive-words',
     method: 'get',
-    params
+    params,
+    timeout: 0
   })
 }
 
@@ -102,7 +103,8 @@ export function importSensitiveWords(formData) {
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 0
   })
 }
 
@@ -116,7 +118,8 @@ export function exportSensitiveWords(params) {
     url: '/sensitive-words/export',
     method: 'get',
     params,
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -128,7 +131,8 @@ export function downloadTemplate() {
   return request({
     url: '/sensitive-words/template',
     method: 'get',
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -139,7 +143,8 @@ export function downloadTemplate() {
 export function getAllSensitiveWords() {
   return request({
     url: '/sensitive-words/all',
-    method: 'get'
+    method: 'get',
+    timeout: 0
   })
 }
 
@@ -164,6 +169,7 @@ export function getAllSensitiveWords() {
 export function getSensitiveWordCategories() {
   return request({
     url: '/sensitive-words/categories',
-    method: 'get'
+    method: 'get',
+    timeout: 0
   })
 }

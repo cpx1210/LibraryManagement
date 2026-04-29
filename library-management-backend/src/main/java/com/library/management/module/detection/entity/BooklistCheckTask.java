@@ -29,6 +29,16 @@ public class BooklistCheckTask {
 
     private Long submittedBy;
 
+    private String submitterName;
+
+    private String submitterDepartment;
+
+    private String submitterEmail;
+
+    private String submitterEmployeeNo;
+
+    private String submitterMobile;
+
     private LocalDateTime submitTime;
 
     private LocalDateTime startTime;

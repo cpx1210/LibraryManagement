@@ -53,6 +53,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     private static final int DETECTION_BATCH_SIZE = 10_000;
     private static final int EXPORT_BATCH_SIZE = 5_000;
     private static final int EXPORT_MAX_ROWS_PER_SHEET = 1_000_000;
+    private static final Path UPLOAD_BASE_DIR = Paths.get("uploads", "booklists");
     private static final String TASK_REJECTED_MESSAGE = "检测任务排队已满，请稍后重试";
     private static final String EXPORT_REJECTED_MESSAGE = "导出任务排队已满，请稍后重试";
 
@@ -82,7 +83,8 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     @Override
     @Log(module = "detection", operationType = "create")
     @Transactional(rollbackFor = Exception.class)
-    public BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName) {
+    public BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName,
+            BooklistUploadSubmitterDTO submitterInfo) {
         log.info("用户 {} 上传书单文件：{}", userName, file.getOriginalFilename());
 
         // 1. 校验文件
@@ -97,16 +99,24 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
 
         log.info("成功解析 {} 本书目", books.size());
 
-        // 3. 生成任务名称
-        String taskName = generateTaskName(userId, userName);
+        // 3. 规范化提交人信息，并生成任务名称
+        BooklistUploadSubmitterDTO normalizedSubmitterInfo = normalizeSubmitterInfo(userName, submitterInfo);
+        String taskName = generateTaskName(userId, normalizedSubmitterInfo.getSubmitterName());
+        String savedFilePath = saveUploadedFile(file, taskName);
 
         // 4. 创建检测任务
         BooklistCheckTask task = BooklistCheckTask.builder()
                 .taskName(taskName)
                 .taskType("批量检测")
                 .submittedBy(userId)
+                .submitterName(normalizedSubmitterInfo.getSubmitterName())
+                .submitterDepartment(normalizedSubmitterInfo.getDepartment())
+                .submitterEmail(normalizedSubmitterInfo.getEmail())
+                .submitterEmployeeNo(normalizedSubmitterInfo.getEmployeeNo())
+                .submitterMobile(normalizedSubmitterInfo.getMobile())
                 .submitTime(LocalDateTime.now())
                 .originalFilename(file.getOriginalFilename())
+                .filePath(savedFilePath)
                 .status("pending")
                 .totalBooks(books.size())
                 .processedBooks(0)
@@ -206,6 +216,7 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .taskName(taskName)
                 .taskType("馆藏检测")
                 .submittedBy(userId)
+                .submitterName(userName)
                 .submitTime(LocalDateTime.now())
                 .originalFilename("馆藏书目数据")
                 .status("pending")
@@ -468,6 +479,20 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
     public IPage<CheckResultDetailDTO> getCheckDetailsPage(Long taskId, String riskLevel, Boolean hasIssue,
             Integer pageNum, Integer pageSize) {
         Page<BooklistCheckDetail> page = new Page<>(pageNum, pageSize);
+        BooklistCheckTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException("检测任务不存在");
+        }
+
+        if (!StringUtils.hasText(riskLevel)) {
+            page.setSearchCount(false);
+            if (Boolean.TRUE.equals(hasIssue)) {
+                page.setTotal(task.getTotalProblemBooks() == null ? 0 : task.getTotalProblemBooks());
+            } else {
+                page.setTotal(task.getTotalBooks() == null ? 0 : task.getTotalBooks());
+            }
+        }
+
         IPage<BooklistCheckDetail> detailPage = detailMapper.selectDetailPage(page, taskId, riskLevel, hasIssue);
         return detailPage.convert(this::convertDetailToDTO);
     }
@@ -969,10 +994,17 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
                 .taskName(task.getTaskName())
                 .taskType(task.getTaskType())
                 .submittedBy(task.getSubmittedBy())
+                .submitterName(task.getSubmitterName())
+                .submitterDepartment(task.getSubmitterDepartment())
+                .submitterEmail(task.getSubmitterEmail())
+                .submitterEmployeeNo(task.getSubmitterEmployeeNo())
+                .submitterMobile(task.getSubmitterMobile())
                 .submitTime(task.getSubmitTime())
                 .startTime(task.getStartTime())
                 .endTime(task.getEndTime())
                 .originalFilename(task.getOriginalFilename())
+                .filePath(task.getFilePath())
+                .resultFilePath(task.getResultFilePath())
                 .status(task.getStatus())
                 .statusText(getStatusText(task.getStatus()))
                 .totalBooks(totalBooks)
@@ -1004,6 +1036,51 @@ public class BooklistCheckServiceImpl implements BooklistCheckService {
         }
 
         return dto;
+    }
+
+    private BooklistUploadSubmitterDTO normalizeSubmitterInfo(String userName, BooklistUploadSubmitterDTO submitterInfo) {
+        String submitterName = trimToNull(submitterInfo == null ? null : submitterInfo.getSubmitterName());
+        if (!StringUtils.hasText(submitterName)) {
+            submitterName = userName;
+        }
+
+        return BooklistUploadSubmitterDTO.builder()
+                .submitterName(submitterName)
+                .department(trimToNull(submitterInfo == null ? null : submitterInfo.getDepartment()))
+                .email(trimToNull(submitterInfo == null ? null : submitterInfo.getEmail()))
+                .employeeNo(trimToNull(submitterInfo == null ? null : submitterInfo.getEmployeeNo()))
+                .mobile(trimToNull(submitterInfo == null ? null : submitterInfo.getMobile()))
+                .build();
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String saveUploadedFile(MultipartFile file, String taskName) {
+        try {
+            Files.createDirectories(UPLOAD_BASE_DIR);
+
+            String originalFilename = StringUtils.hasText(file.getOriginalFilename())
+                    ? file.getOriginalFilename()
+                    : "booklist.xlsx";
+            String safeFilename = originalFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
+            String safeTaskName = StringUtils.hasText(taskName)
+                    ? taskName.replaceAll("[\\\\/:*?\"<>|]", "_")
+                    : "task";
+            String timestamp = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").format(LocalDateTime.now());
+            Path targetPath = UPLOAD_BASE_DIR.resolve(timestamp + "_" + safeTaskName + "_" + safeFilename);
+
+            file.transferTo(targetPath);
+            log.info("原始上传文件已保存：{}", targetPath.toAbsolutePath());
+            return targetPath.toAbsolutePath().toString();
+        } catch (IOException e) {
+            log.error("保存上传文件失败：{}", e.getMessage(), e);
+            throw new BusinessException("保存上传文件失败，请稍后重试");
+        }
     }
 
     private boolean hasReadyExportFile(BooklistCheckTask task) {

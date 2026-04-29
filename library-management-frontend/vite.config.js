@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
@@ -15,7 +17,7 @@ export default defineConfig({
     open: true,              // 启动时自动打开浏览器
     proxy: {
       '/api': {              // 以 /api 开头的请求会被代理
-        target: 'http://localhost:8080',  // 后端服务地址
+        target: apiProxyTarget,  // 后端服务地址
         changeOrigin: true,  // 改变请求头中的 origin，解决跨域
         secure: false        // 如果是 https 接口，需要配置这个参数
       }

@@ -20,7 +20,8 @@ export function getLogList(params) {
     return request({
         url: '/logs',
         method: 'get',
-        params
+        params,
+        timeout: 0
     })
 }
 
@@ -82,7 +83,8 @@ export function exportLogs(params) {
         url: '/logs/export',
         method: 'get',
         params,
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 0
     })
 }
 

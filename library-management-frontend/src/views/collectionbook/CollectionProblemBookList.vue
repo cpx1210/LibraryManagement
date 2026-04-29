@@ -49,7 +49,7 @@
         <div class="card-header">
           <span>馆藏问题图书列表</span>
           <div class="header-actions">
-            <el-button type="warning" @click="handleExport">
+            <el-button type="warning" :loading="exportLoading" @click="handleExport">
               <el-icon><Download /></el-icon>
               导出
             </el-button>
@@ -186,6 +186,7 @@ const pagination = reactive({
 const tableData = ref([])
 const loading = ref(false)
 const selectedRows = ref([])
+const exportLoading = ref(false)
 
 // 详情对话框
 const detailDialogVisible = ref(false)
@@ -333,6 +334,7 @@ const handleBatchDelete = () => {
 
 // 导出
 const handleExport = async () => {
+  exportLoading.value = true
   try {
     const params = { ...searchForm }
     const res = await exportCollectionBooks(params)
@@ -347,6 +349,8 @@ const handleExport = async () => {
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
   }
 }
 

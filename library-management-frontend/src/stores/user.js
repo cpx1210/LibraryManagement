@@ -67,8 +67,8 @@ export const useUserStore = defineStore('user', {
 
           ElMessage.success('登录成功')
 
-          // 跳转到原来要访问的页面，或首页
-          const redirect = router.currentRoute.value.query.redirect || '/'
+          // 跳转到原来要访问的页面，或后台首页
+          const redirect = router.currentRoute.value.query.redirect || '/dashboard'
           router.push(redirect)
 
           return response

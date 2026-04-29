@@ -18,8 +18,10 @@ NC='\033[0m' # No Color
 
 # 版本配置
 VERSION="v1.0"
-BACKEND_TAR="library-backend-${VERSION}.tar"
-FRONTEND_TAR="library-frontend-${VERSION}.tar"
+DEFAULT_BACKEND_TAR="library-backend-${VERSION}.tar"
+DEFAULT_FRONTEND_TAR="library-frontend-${VERSION}.tar"
+ALT_BACKEND_TAR="library-management-backend.tar"
+ALT_FRONTEND_TAR="library-management-frontend.tar"
 
 # 配置参数（请根据实际情况修改）
 MYSQL_HOST="localhost"
@@ -27,6 +29,22 @@ MYSQL_PORT="3306"
 MYSQL_DATABASE="library_management"
 MYSQL_USER="root"
 MYSQL_PASSWORD="PS*RA3sE:6M27F)C*j<2"
+
+resolve_tar_file() {
+    local primary="$1"
+    local fallback="$2"
+
+    if [ -f "$primary" ]; then
+        echo "$primary"
+    elif [ -f "$fallback" ]; then
+        echo "$fallback"
+    else
+        echo "$primary"
+    fi
+}
+
+BACKEND_TAR="$(resolve_tar_file "$DEFAULT_BACKEND_TAR" "$ALT_BACKEND_TAR")"
+FRONTEND_TAR="$(resolve_tar_file "$DEFAULT_FRONTEND_TAR" "$ALT_FRONTEND_TAR")"
 
 echo -e "${YELLOW}[步骤 1/8] 检查系统环境...${NC}"
 # 检查是否为root用户
@@ -53,11 +71,15 @@ fi
 echo -e "${GREEN}[✓] Docker版本: $(docker --version)${NC}"
 
 # 检查Docker Compose
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD=(docker-compose)
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD=(docker compose)
+else
     echo -e "${RED}[错误] 未检测到Docker Compose，请先安装${NC}"
     exit 1
 fi
-echo -e "${GREEN}[✓] Docker Compose版本: $(docker-compose --version)${NC}"
+echo -e "${GREEN}[✓] Docker Compose版本: $("${COMPOSE_CMD[@]}" version | head -n 1)${NC}"
 
 # 检查MySQL
 if ! command -v mysql &> /dev/null; then
@@ -91,17 +113,29 @@ echo -e "${GREEN}[✓] Docker Compose配置文件存在${NC}"
 echo ""
 
 echo -e "${YELLOW}[步骤 3/8] 导入后端镜像...${NC}"
-docker load -i "$BACKEND_TAR"
-echo -e "${GREEN}[✓] 后端镜像导入成功${NC}"
+BACKEND_LOAD_OUTPUT="$(docker load -i "$BACKEND_TAR")"
+echo "$BACKEND_LOAD_OUTPUT"
+BACKEND_IMAGE="$(printf '%s\n' "$BACKEND_LOAD_OUTPUT" | sed -n 's/^Loaded image: //p' | head -n 1)"
+if [ -z "$BACKEND_IMAGE" ]; then
+    echo -e "${RED}[错误] 无法识别后端镜像名称，请检查 $BACKEND_TAR${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[✓] 后端镜像导入成功: $BACKEND_IMAGE${NC}"
 echo ""
 
 echo -e "${YELLOW}[步骤 4/8] 导入前端镜像...${NC}"
-docker load -i "$FRONTEND_TAR"
-echo -e "${GREEN}[✓] 前端镜像导入成功${NC}"
+FRONTEND_LOAD_OUTPUT="$(docker load -i "$FRONTEND_TAR")"
+echo "$FRONTEND_LOAD_OUTPUT"
+FRONTEND_IMAGE="$(printf '%s\n' "$FRONTEND_LOAD_OUTPUT" | sed -n 's/^Loaded image: //p' | head -n 1)"
+if [ -z "$FRONTEND_IMAGE" ]; then
+    echo -e "${RED}[错误] 无法识别前端镜像名称，请检查 $FRONTEND_TAR${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[✓] 前端镜像导入成功: $FRONTEND_IMAGE${NC}"
 echo ""
 
 echo -e "${YELLOW}[步骤 5/8] 验证镜像...${NC}"
-docker images | grep library
+docker images | grep -E 'library|management'
 echo ""
 
 echo -e "${YELLOW}[步骤 6/8] 创建必要的目录...${NC}"
@@ -115,6 +149,10 @@ cat > .env << EOF
 # MySQL数据库配置
 MYSQL_USER=${MYSQL_USER}
 MYSQL_PASSWORD=${MYSQL_PASSWORD}
+
+# 实际启动的镜像（从导入的tar中自动识别）
+BACKEND_IMAGE=${BACKEND_IMAGE}
+FRONTEND_IMAGE=${FRONTEND_IMAGE}
 
 # JWT密钥（生产环境请修改为随机字符串）
 JWT_SECRET=
@@ -130,12 +168,14 @@ echo -e "${YELLOW}[步骤 8/8] 启动服务...${NC}"
 # 停止旧容器（如果存在）
 if [ "$(docker ps -a -q -f name=library-)" ]; then
     echo "停止并删除旧容器..."
-    docker-compose -f docker-compose.yml down
+    "${COMPOSE_CMD[@]}" -f docker-compose.yml down
 fi
 
 # 启动新容器
 echo "启动容器..."
-docker-compose -f docker-compose.yml up -d
+echo "后端镜像: $BACKEND_IMAGE"
+echo "前端镜像: $FRONTEND_IMAGE"
+"${COMPOSE_CMD[@]}" -f docker-compose.yml up -d --force-recreate
 
 # 等待服务启动
 echo ""
@@ -145,7 +185,7 @@ sleep 30
 # 检查服务状态
 echo ""
 echo -e "${YELLOW}检查服务状态...${NC}"
-docker-compose -f docker-compose.yml ps
+"${COMPOSE_CMD[@]}" -f docker-compose.yml ps
 
 echo ""
 echo "===================================="
@@ -157,14 +197,13 @@ echo "  - 前端: http://$(hostname -I | awk '{print $1}')"
 echo "  - 后端API: http://$(hostname -I | awk '{print $1}'):8080/api"
 echo ""
 echo "常用命令："
-echo "  - 查看日志: docker-compose -f docker-compose.yml logs -f"
-echo "  - 停止服务: docker-compose -f docker-compose.yml down"
-echo "  - 重启服务: docker-compose -f docker-compose.yml restart"
-echo "  - 查看状态: docker-compose -f docker-compose.yml ps"
+echo "  - 查看日志: ${COMPOSE_CMD[*]} -f docker-compose.yml logs -f"
+echo "  - 停止服务: ${COMPOSE_CMD[*]} -f docker-compose.yml down"
+echo "  - 重启服务: ${COMPOSE_CMD[*]} -f docker-compose.yml restart"
+echo "  - 查看状态: ${COMPOSE_CMD[*]} -f docker-compose.yml ps"
 echo ""
 echo "注意事项："
 echo "  1. 请确保MySQL数据库已创建并初始化"
 echo "  2. 请确保防火墙已开放80和8080端口"
 echo "  3. 首次登录账号密码请查看数据库初始化脚本"
 echo ""
-

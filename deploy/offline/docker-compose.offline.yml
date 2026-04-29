@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    image: library-backend:v1.0
+    container_name: library-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: ${DB_URL:-jdbc:mysql://host.docker.internal:3306/library_management?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:-please-change-this-jwt-secret}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC}
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./logs/backend:/app/logs
+      - ./uploads:/app/uploads
+    networks:
+      - library-network
+
+  frontend:
+    image: library-frontend:v1.0
+    container_name: library-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - library-network
+
+networks:
+  library-network:
+    driver: bridge

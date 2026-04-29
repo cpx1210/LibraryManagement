@@ -27,6 +27,14 @@ public class BooklistCheckTaskDTO {
 
     private String submitterName;
 
+    private String submitterDepartment;
+
+    private String submitterEmail;
+
+    private String submitterEmployeeNo;
+
+    private String submitterMobile;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime submitTime;
 
@@ -37,6 +45,10 @@ public class BooklistCheckTaskDTO {
     private LocalDateTime endTime;
 
     private String originalFilename;
+
+    private String filePath;
+
+    private String resultFilePath;
 
     private String status;
 

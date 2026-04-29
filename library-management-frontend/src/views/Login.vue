@@ -55,10 +55,6 @@
         </el-form-item>
       </el-form>
 
-      <!-- 提示信息 -->
-      <div class="login-footer">
-        <p>默认账号：admin / admin123</p>
-      </div>
     </el-card>
   </div>
 </template>
@@ -172,19 +168,6 @@ const handleLogin = async () => {
 .login-button {
   width: 100%;
   margin-top: 10px;
-}
-
-/* 登录底部 */
-.login-footer {
-  text-align: center;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ebeef5;
-}
-
-.login-footer p {
-  font-size: 13px;
-  color: #909399;
 }
 
 /* 响应式设计 */

@@ -48,7 +48,7 @@
         <el-button type="success" @click="handleImport" :icon="Upload">
           批量导入
         </el-button>
-        <el-button type="warning" @click="handleExport" :icon="Download">
+        <el-button type="warning" @click="handleExport" :icon="Download" :loading="exportLoading">
           批量导出
         </el-button>
         <el-button @click="handleDownloadTemplate" :icon="Document">
@@ -251,6 +251,7 @@ const queryForm = reactive({
 const tableData = ref([])
 const total = ref(0)
 const loading = ref(false)
+const exportLoading = ref(false)
 
 // 对话框状态
 const dialogVisible = ref(false)
@@ -453,6 +454,7 @@ const confirmImport = async () => {
  * 批量导出
  */
 const handleExport = async () => {
+  exportLoading.value = true
   try {
     ElMessage.info('正在导出，请稍候...')
 
@@ -473,6 +475,8 @@ const handleExport = async () => {
   } catch (error) {
     console.error('导出敏感词失败', error)
     ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
   }
 }
 

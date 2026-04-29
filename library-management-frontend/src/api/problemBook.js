@@ -34,7 +34,8 @@ export function getProblemBookList(params) {
   return request({
     url: '/problem-books',
     method: 'get',
-    params
+    params,
+    timeout: 0
   })
 }
 
@@ -115,7 +116,8 @@ export function importProblemBooks(formData) {
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 0
   })
 }
 
@@ -129,7 +131,8 @@ export function exportProblemBooks(params) {
     url: '/problem-books/export',
     method: 'get',
     params,
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -141,7 +144,8 @@ export function downloadTemplate() {
   return request({
     url: '/problem-books/template',
     method: 'get',
-    responseType: 'blob'  // 重要：接收二进制数据
+    responseType: 'blob',  // 重要：接收二进制数据
+    timeout: 0
   })
 }
 
@@ -152,6 +156,7 @@ export function downloadTemplate() {
 export function getAllProblemBooks() {
   return request({
     url: '/problem-books/all',
-    method: 'get'
+    method: 'get',
+    timeout: 0
   })
 }

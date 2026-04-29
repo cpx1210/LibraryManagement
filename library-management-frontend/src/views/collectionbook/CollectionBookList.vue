@@ -66,7 +66,7 @@
               <el-icon><Upload /></el-icon>
               导入
             </el-button>
-            <el-button type="warning" @click="handleExport">
+            <el-button type="warning" :loading="exportLoading" @click="handleExport">
               <el-icon><Download /></el-icon>
               导出
             </el-button>
@@ -351,6 +351,7 @@ const pagination = reactive({
 const tableData = ref([])
 const loading = ref(false)
 const selectedRows = ref([])
+const exportLoading = ref(false)
 
 // 对话框
 const dialogVisible = ref(false)
@@ -594,6 +595,7 @@ const handleImportSubmit = async () => {
 
 // 导出
 const handleExport = async () => {
+  exportLoading.value = true
   try {
     const params = { ...searchForm }
     const res = await exportCollectionBooks(params)
@@ -609,6 +611,8 @@ const handleExport = async () => {
   } catch (error) {
     console.error('导出失败:', error)
     ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
   }
 }
 

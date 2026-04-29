@@ -196,6 +196,7 @@
 
       <el-table :data="recentTasks" stripe>
         <el-table-column prop="taskName" label="任务名称" min-width="220" />
+        <el-table-column prop="submitterName" label="上传人" width="120" show-overflow-tooltip />
         <el-table-column prop="submitTime" label="提交时间" width="180" />
         <el-table-column label="进度" min-width="220">
           <template #default="{ row }">

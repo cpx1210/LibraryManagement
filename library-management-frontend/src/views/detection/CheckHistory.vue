@@ -56,6 +56,15 @@
         style="width: 100%"
       >
         <el-table-column prop="taskName" label="任务名称" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="submitterName" label="上传人" width="120" show-overflow-tooltip />
+        <el-table-column label="上传信息" min-width="260">
+          <template #default="{ row }">
+            <div class="submitter-info">
+              <div>{{ row.submitterDepartment || '-' }} / {{ row.submitterEmployeeNo || '-' }}</div>
+              <div>{{ row.submitterEmail || '-' }} / {{ row.submitterMobile || '-' }}</div>
+            </div>
+          </template>
+        </el-table-column>
 
         <el-table-column prop="submitTime" label="提交时间" width="180" />
 
@@ -509,6 +518,11 @@ onUnmounted(() => {
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.submitter-info {
+  color: #606266;
+  line-height: 1.6;
 }
 
 .pagination {

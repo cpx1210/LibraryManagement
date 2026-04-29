@@ -10,7 +10,8 @@ import request from '@/utils/request'
 export function getOverviewStats() {
     return request({
         url: '/statistics/overview',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 
@@ -20,7 +21,8 @@ export function getOverviewStats() {
 export function getSensitiveWordDistribution() {
     return request({
         url: '/statistics/sensitive-word-distribution',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 
@@ -30,7 +32,8 @@ export function getSensitiveWordDistribution() {
 export function getDetectionTrend() {
     return request({
         url: '/statistics/detection-trend',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 
@@ -40,7 +43,8 @@ export function getDetectionTrend() {
 export function getRecentDetections() {
     return request({
         url: '/statistics/recent-detections',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 
@@ -50,7 +54,8 @@ export function getRecentDetections() {
 export function getRecentLogs() {
     return request({
         url: '/statistics/recent-logs',
-        method: 'get'
+        method: 'get',
+        timeout: 0
     })
 }
 

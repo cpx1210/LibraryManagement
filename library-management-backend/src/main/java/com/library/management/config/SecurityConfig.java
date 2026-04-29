@@ -108,6 +108,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/login", // 登录接口
                                 "/auth/register", // 注册接口（如果有）
+                                "/booklist-check/upload", // 公开上传书单
+                                "/booklist-check/template", // 公开下载模板
                                 "/actuator/health", // 健康检查接口（Docker/K8s 探针）
                                 "/actuator/info", // 应用信息接口
                                 "/actuator/**", // Actuator 所有端点（可根据需要调整范围）

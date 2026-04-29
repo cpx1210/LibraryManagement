@@ -55,7 +55,7 @@
         <el-button type="success" @click="handleImport" :icon="Upload">
           批量导入
         </el-button>
-        <el-button type="warning" @click="handleExport" :icon="Download">
+        <el-button type="warning" @click="handleExport" :icon="Download" :loading="exportLoading">
           批量导出
         </el-button>
         <el-button @click="handleDownloadTemplate" :icon="Document">
@@ -270,6 +270,7 @@ const pagination = reactive({
 // 表格数据
 const tableData = ref([])
 const loading = ref(false)
+const exportLoading = ref(false)
 
 // 对话框
 const dialogVisible = ref(false)
@@ -503,6 +504,7 @@ const handleConfirmImport = async () => {
  * 批量导出按钮点击
  */
 const handleExport = async () => {
+  exportLoading.value = true
   try {
     const res = await exportPublisherWhitelists(queryForm)
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -515,6 +517,8 @@ const handleExport = async () => {
     ElMessage.success('导出成功')
   } catch (error) {
     ElMessage.error('导出失败：' + (error.message || '未知错误'))
+  } finally {
+    exportLoading.value = false
   }
 }
 

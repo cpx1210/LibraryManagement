@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.library.management.common.result.Result;
 import com.library.management.module.detection.dto.BooklistCheckTaskDTO;
 import com.library.management.module.detection.dto.BooklistUploadResponse;
+import com.library.management.module.detection.dto.BooklistUploadSubmitterDTO;
 import com.library.management.module.detection.dto.CheckResultDetailDTO;
 import com.library.management.module.detection.dto.CollectionBookCheckRequest;
 import com.library.management.module.detection.dto.TaskQueryRequest;
@@ -48,15 +49,27 @@ public class BooklistCheckController {
     @Operation(summary = "上传书单", description = "上传 Excel 书单文件，创建检测任务并自动开始检测")
     @PostMapping("/upload")
     public Result<BooklistUploadResponse> uploadBooklist(
-            @Parameter(description = "Excel 文件", required = true) @RequestParam("file") MultipartFile file) {
+            @Parameter(description = "Excel 文件", required = true) @RequestParam("file") MultipartFile file,
+            @Parameter(description = "上传人姓名") @RequestParam(required = false) String submitterName,
+            @Parameter(description = "部门") @RequestParam(required = false) String department,
+            @Parameter(description = "邮箱") @RequestParam(required = false) String email,
+            @Parameter(description = "工号") @RequestParam(required = false) String employeeNo,
+            @Parameter(description = "手机号") @RequestParam(required = false) String mobile) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long userId = getCurrentUserId(auth);
         String userName = getCurrentUserName(auth);
+        BooklistUploadSubmitterDTO submitterInfo = BooklistUploadSubmitterDTO.builder()
+                .submitterName(submitterName)
+                .department(department)
+                .email(email)
+                .employeeNo(employeeNo)
+                .mobile(mobile)
+                .build();
 
         log.info("用户 {} 上传书单文件", userName);
 
-        BooklistUploadResponse response = booklistCheckService.uploadBooklist(file, userId, userName);
+        BooklistUploadResponse response = booklistCheckService.uploadBooklist(file, userId, userName, submitterInfo);
         return Result.success(response);
     }
 
@@ -209,7 +222,7 @@ public class BooklistCheckController {
     }
 
     private Long getCurrentUserId(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) {
+        if (isAnonymous(auth)) {
             return 1L;
         }
 
@@ -221,10 +234,16 @@ public class BooklistCheckController {
     }
 
     private String getCurrentUserName(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) {
-            return "系统管理员";
+        if (isAnonymous(auth)) {
+            return "公共上传";
         }
 
         return auth.getName();
+    }
+
+    private boolean isAnonymous(Authentication auth) {
+        return auth == null
+                || !auth.isAuthenticated()
+                || "anonymousUser".equals(auth.getName());
     }
 }

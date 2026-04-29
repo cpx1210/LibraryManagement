@@ -21,7 +21,8 @@ public interface BooklistCheckService {
      * @param userName 当前用户姓名
      * @return 上传响应
      */
-    BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName);
+    BooklistUploadResponse uploadBooklist(MultipartFile file, Long userId, String userName,
+            BooklistUploadSubmitterDTO submitterInfo);
 
     /**
      * 从馆藏书目创建检测任务
