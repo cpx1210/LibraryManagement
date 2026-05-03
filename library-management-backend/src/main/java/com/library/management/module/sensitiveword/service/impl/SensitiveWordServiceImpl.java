@@ -137,7 +137,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @Log(module = "sensitive_word", operationType = "create")
-    @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
+    @CacheEvict(cacheNames = {"sensitiveWords", "detectionReferenceSnapshot"}, allEntries = true)
     public SensitiveWordDTO createWord(SensitiveWordCreateRequest request, Long createdBy) {
         // 1. 验证分类ID是否存在（如果提供了的话）
         Long categoryId = request.getCategoryId();
@@ -192,7 +192,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @Log(module = "sensitive_word", operationType = "update")
-    @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
+    @CacheEvict(cacheNames = {"sensitiveWords", "detectionReferenceSnapshot"}, allEntries = true)
     public SensitiveWordDTO updateWord(SensitiveWordUpdateRequest request, Long updatedBy) {
         // 1. 检查敏感词是否存在
         SensitiveWords word = sensitiveWordMapper.selectById(request.getWordId());
@@ -263,7 +263,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @Log(module = "sensitive_word", operationType = "delete")
-    @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
+    @CacheEvict(cacheNames = {"sensitiveWords", "detectionReferenceSnapshot"}, allEntries = true)
     public void deleteWord(Long wordId) {
         // 1. 检查敏感词是否存在
         SensitiveWords word = sensitiveWordMapper.selectById(wordId);
@@ -299,7 +299,7 @@ public class SensitiveWordServiceImpl implements SensitiveWordService {
      */
     @Override
     @Log(module = "sensitive_word", operationType = "import")
-    @CacheEvict(cacheNames = "sensitiveWords", allEntries = true)
+    @CacheEvict(cacheNames = {"sensitiveWords", "detectionReferenceSnapshot"}, allEntries = true)
     public Map<String, Object> importWords(MultipartFile file, Long createdBy) {
         // 1. 读取 Excel 文件
         List<SensitiveWordExcelDTO> excelDataList = ExcelUtil.read(file, SensitiveWordExcelDTO.class);

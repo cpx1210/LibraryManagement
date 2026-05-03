@@ -122,7 +122,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      */
     @Override
     @Log(module = "publisher_whitelist", operationType = "create")
-    @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
+    @CacheEvict(cacheNames = {"publisherWhitelist", "detectionReferenceSnapshot"}, allEntries = true)
     public PublisherWhitelistDTO createPublisher(PublisherWhitelistCreateRequest request, Long createdBy) {
         // 1. 检查出版社名称是否已存在
         PublisherWhitelist existingPublisher = publisherWhitelistMapper
@@ -164,7 +164,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      */
     @Override
     @Log(module = "publisher_whitelist", operationType = "update")
-    @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
+    @CacheEvict(cacheNames = {"publisherWhitelist", "detectionReferenceSnapshot"}, allEntries = true)
     public PublisherWhitelistDTO updatePublisher(PublisherWhitelistUpdateRequest request) {
         // 1. 检查出版社白名单是否存在
         PublisherWhitelist publisher = publisherWhitelistMapper.selectById(request.getPublisherId());
@@ -214,7 +214,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      */
     @Override
     @Log(module = "publisher_whitelist", operationType = "delete")
-    @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
+    @CacheEvict(cacheNames = {"publisherWhitelist", "detectionReferenceSnapshot"}, allEntries = true)
     public void deletePublisher(Long publisherId) {
         // 1. 检查出版社白名单是否存在
         PublisherWhitelist publisher = publisherWhitelistMapper.selectById(publisherId);
@@ -270,7 +270,7 @@ public class PublisherWhitelistServiceImpl implements PublisherWhitelistService 
      */
     @Override
     @Log(module = "publisher_whitelist", operationType = "import")
-    @CacheEvict(cacheNames = "publisherWhitelist", allEntries = true)
+    @CacheEvict(cacheNames = {"publisherWhitelist", "detectionReferenceSnapshot"}, allEntries = true)
     public Map<String, Object> importPublishers(MultipartFile file, Long createdBy) {
         List<PublisherWhitelistExcelDTO> excelDataList;
         try {

@@ -135,7 +135,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      */
     @Override
     @Log(module = "problem_book", operationType = "create")
-    @CacheEvict(cacheNames = "problemBooks", allEntries = true)
+    @CacheEvict(cacheNames = {"problemBooks", "detectionReferenceSnapshot"}, allEntries = true)
     public ProblemBookDTO createBook(ProblemBookCreateRequest request, Long createdBy) {
         // 1. 检查 ISBN 是否已存在（如果提供了 ISBN）
         if (StringUtils.hasText(request.getIsbn())) {
@@ -187,7 +187,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      */
     @Override
     @Log(module = "problem_book", operationType = "update")
-    @CacheEvict(cacheNames = "problemBooks", allEntries = true)
+    @CacheEvict(cacheNames = {"problemBooks", "detectionReferenceSnapshot"}, allEntries = true)
     public ProblemBookDTO updateBook(ProblemBookUpdateRequest request, Long updatedBy) {
         // 1. 检查问题书目是否存在
         ProblemBook book = problemBookMapper.selectById(request.getBookId());
@@ -256,7 +256,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      */
     @Override
     @Log(module = "problem_book", operationType = "delete")
-    @CacheEvict(cacheNames = "problemBooks", allEntries = true)
+    @CacheEvict(cacheNames = {"problemBooks", "detectionReferenceSnapshot"}, allEntries = true)
     public void deleteBook(Long bookId) {
         // 1. 检查问题书目是否存在
         ProblemBook book = problemBookMapper.selectById(bookId);
@@ -307,7 +307,7 @@ public class ProblemBookServiceImpl implements ProblemBookService {
      */
     @Override
     @Log(module = "problem_book", operationType = "import")
-    @CacheEvict(cacheNames = "problemBooks", allEntries = true)
+    @CacheEvict(cacheNames = {"problemBooks", "detectionReferenceSnapshot"}, allEntries = true)
     public Map<String, Object> importBooks(MultipartFile file, Long createdBy) {
         // 1. 读取 Excel 文件
         List<ProblemBookExcelDTO> excelDataList = ExcelUtil.read(file, ProblemBookExcelDTO.class);

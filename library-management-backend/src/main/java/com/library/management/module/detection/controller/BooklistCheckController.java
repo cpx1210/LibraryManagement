@@ -1,6 +1,7 @@
 package com.library.management.module.detection.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.library.management.common.exception.BusinessException;
 import com.library.management.common.result.Result;
 import com.library.management.module.detection.dto.BooklistCheckTaskDTO;
 import com.library.management.module.detection.dto.BooklistUploadResponse;
@@ -10,6 +11,7 @@ import com.library.management.module.detection.dto.CollectionBookCheckRequest;
 import com.library.management.module.detection.dto.TaskQueryRequest;
 import com.library.management.module.detection.service.BooklistCheckService;
 import com.library.management.module.detection.service.impl.CollectionBookDetectionService;
+import com.library.management.module.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,6 +44,9 @@ public class BooklistCheckController {
 
     @Resource
     private CollectionBookDetectionService collectionBookDetectionService;
+
+    @Resource
+    private UserService userService;
 
     /**
      * 上传书单文件并创建检测任务
@@ -226,11 +231,12 @@ public class BooklistCheckController {
             return 1L;
         }
 
-        try {
-            return Long.parseLong(auth.getName());
-        } catch (NumberFormatException e) {
-            return 1L;
+        String username = auth.getName();
+        Long userId = userService.getUserIdByUsername(username);
+        if (userId == null) {
+            throw new BusinessException("当前登录用户不存在或已失效");
         }
+        return userId;
     }
 
     private String getCurrentUserName(Authentication auth) {
