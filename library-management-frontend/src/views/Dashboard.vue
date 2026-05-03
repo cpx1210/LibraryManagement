@@ -63,7 +63,7 @@
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card class="stat-card" shadow="never" @click="$router.push('/publishers')">
+        <el-card class="stat-card" shadow="never" @click="$router.push('/publisher-whitelist')">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#67c23a"><CircleCheck /></el-icon>
             <div class="stat-info">
@@ -84,7 +84,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="4">
+      <el-col v-if="userStore.isAdmin" :span="4">
         <el-card class="stat-card" shadow="never" @click="$router.push('/users')">
           <div class="stat-content">
             <el-icon class="stat-icon" color="#409eff"><User /></el-icon>

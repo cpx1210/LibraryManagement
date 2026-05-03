@@ -4,11 +4,11 @@ import { ElMessage } from 'element-plus'
 /**
  * 创建 Axios 实例
  * - baseURL: API 基础路径（通过 Vite 代理转发到后端）
- * - timeout: 请求超时时间
+ * - timeout: 请求超时时间（默认60秒，文件上传等长时间操作可单独设置）
  */
 const service = axios.create({
   baseURL: '/api',  // 所有请求都会加上 /api 前缀，由 Vite 代理转发
-  timeout: 10000    // 请求超时时间 10 秒
+  timeout: 60000    // 请求超时时间 60 秒（增加到60秒以支持较大文件上传）
 })
 
 /**
@@ -67,7 +67,7 @@ service.interceptors.response.use(
      */
 
     // 处理业务层面的未授权（token 过期或无效）
-    if (res.code === 401 || res.code === 403) {
+    if (res.code === 401) {
       ElMessage.error('登录已过期，请重新登录')
       // 清除 token 和用户信息
       localStorage.removeItem('token')
@@ -77,6 +77,12 @@ service.interceptors.response.use(
         window.location.href = '/login'
       }, 1000)
       return Promise.reject(new Error('登录已过期'))
+    }
+
+    // 处理业务层面的权限不足（角色不具备访问权限）
+    if (res.code === 403) {
+      ElMessage.error(res.message || '权限不足，无法访问该资源')
+      return Promise.reject(new Error(res.message || '权限不足'))
     }
 
     // 如果响应成功（code === 200）
@@ -98,8 +104,7 @@ service.interceptors.response.use(
 
       switch (status) {
         case 401:
-        case 403:
-          // 401 未授权或 403 拒绝访问（token 失效）
+          // 401 未授权（token 失效）
           ElMessage.error('登录已过期，请重新登录')
           // 清除 token 和用户信息
           localStorage.removeItem('token')
@@ -107,8 +112,16 @@ service.interceptors.response.use(
           // 跳转到登录页
           window.location.href = '/login'
           break
+        case 403:
+          // 403 拒绝访问（角色权限不足）
+          ElMessage.error(error.response.data?.message || '权限不足，无法访问该资源')
+          break
         case 404:
           ElMessage.error('请求的资源不存在')
+          break
+        case 413:
+          // 413 请求实体过大（文件上传超过限制）
+          ElMessage.error('上传文件过大，请确保文件不超过 50MB')
           break
         case 500:
           ElMessage.error('服务器内部错误')

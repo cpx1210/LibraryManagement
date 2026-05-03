@@ -25,7 +25,7 @@ VALUES ('admin', '$2a$10$5.gKc63lignU4z5Bt24vkegg4YgvpJn0T1LFfpM9wz8t6QGl9qwcm',
 -- =====================================================
 -- Password: user123
 INSERT INTO sys_user (username, password_hash, role, department, real_name, employee_id, is_active, create_time)
-VALUES ('testuser', '$2a$10$rFxWQxHhQIzVqkAEv8LqxuXJ5QwQX5fZ8wqGwqHqQX5fZ8wqGwqH', 'user', '图书管理部', '测试用户', 'USER001', 1, CURRENT_TIMESTAMP);
+VALUES ('testuser', '$2a$10$LYF.8/AoEyfueP0lAMg/0.4gmup0uXn5f3lomCZqvSRITAeaHTxp2', 'user', '图书管理部', '测试用户', 'USER001', 1, CURRENT_TIMESTAMP);
 
 -- =====================================================
 -- 3. Initialize Sensitive Word Categories

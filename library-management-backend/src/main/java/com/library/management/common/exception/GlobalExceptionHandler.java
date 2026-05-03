@@ -4,6 +4,7 @@ import com.library.management.common.constant.ResponseCode;
 import com.library.management.common.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.stream.Collectors;
 
@@ -73,6 +75,22 @@ public class GlobalExceptionHandler {
     public Result<?> handleAuthException(AuthException e) {
         log.warn("认证/授权异常：{}", e.getMessage());
         return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    /**
+     * 处理权限不足异常
+     *
+     * 场景：用户已登录，但角色权限不足
+     * 例如：普通用户访问管理员接口
+     *
+     * @param e 权限不足异常
+     * @return 错误响应
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<?> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("权限不足：{}", e.getMessage());
+        return Result.fail(ResponseCode.FORBIDDEN, "权限不足，无法访问该资源");
     }
 
     /**
@@ -150,6 +168,26 @@ public class GlobalExceptionHandler {
     public Result<?> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("非法参数：{}", e.getMessage());
         return Result.fail(ResponseCode.BAD_REQUEST, "参数错误：" + e.getMessage());
+    }
+
+    /**
+     * 处理文件上传大小超限异常
+     *
+     * 场景：上传的文件大小超过配置的限制
+     * 例如：上传超过 50MB 的文件
+     *
+     * @param e 文件上传大小超限异常
+     * @return 错误响应
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<?> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("文件上传大小超限：{}", e.getMessage());
+        long maxSize = e.getMaxUploadSize();
+        String message = maxSize > 0
+            ? String.format("上传文件大小超过限制，最大允许 %d MB", maxSize / 1024 / 1024)
+            : "上传文件大小超过限制";
+        return Result.fail(ResponseCode.BAD_REQUEST, message);
     }
 
     /**

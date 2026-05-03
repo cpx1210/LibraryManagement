@@ -47,6 +47,7 @@ const routes = [
         component: () => import('@/views/user/UserList.vue'),
         meta: {
           requiresAuth: true,
+          roles: ['admin'],
           title: '用户管理'
         }
       },
@@ -170,6 +171,15 @@ router.beforeEach((to, from, next) => {
   if (requiresAuth) {
     // 需要登录的页面
     if (token) {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const roles = to.meta.roles
+
+      if (roles && !roles.includes(userInfo.role)) {
+        console.log('权限不足，跳转到首页')
+        next('/dashboard')
+        return
+      }
+
       // 已登录，允许访问
       next()
     } else {
